@@ -21,7 +21,7 @@ class ChatBotScreen extends StatelessWidget {
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color:
-                        index % 2 == 0 ? Colors.green.shade200 : Colors.white70,
+                        index % 2 == 0 ?Color(0xFFB3BEA6) : Colors.white70,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
