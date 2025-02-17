@@ -28,8 +28,7 @@ class _WateringScheduleScreenState extends State<WateringScheduleScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _selectedPlantIndex == index
                           ? const Color(0xFF2A543C) // اللون الغامق للمحدد
-                          : const Color(
-                              0xFFDCE3C6), // اللون الفاتح لغير المحدد
+                          : const Color(0xFFDCE3C6), // اللون الفاتح لغير المحدد
                       foregroundColor: _selectedPlantIndex == index
                           ? Colors.white
                           : Colors.black,
