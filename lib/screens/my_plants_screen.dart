@@ -18,45 +18,8 @@ class MyPlantsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              Color(0xFFA9A9A9), //  الرمادي الفاتح
-              Color(0xFF577363), //  الأخضر الباهت
-              Color(0xFF063D1D), //  الأخضر الغامق
-            ],
-            stops: [0.0, 0.5, 1.0],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
-        child: Column(
+    return  Column(
           children: [
-            AppBar(
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.black),
-                onPressed: () => Navigator.pop(context),
-              ),
-              title: const Text(
-                "نبتاتي",
-                style: TextStyle(
-                  fontSize: 24, //  تكبير حجم النص
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
-              ),
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.menu, color: Colors.black),
-                  onPressed: () {},
-                ),
-              ],
-              centerTitle: true,
-            ),
             Expanded(
               child: ListView.builder(
                 itemCount: plants.length,
@@ -99,7 +62,7 @@ class MyPlantsScreen extends StatelessWidget {
                                   fit: BoxFit.cover,
                                 ),
                               ),
-                              const SizedBox(width: 20),
+                              const SizedBox(width: 10),
                               //  النص على اليمين مع زر جدول الري
                               Expanded(
                                 child: Column(
@@ -121,7 +84,7 @@ class MyPlantsScreen extends StatelessWidget {
                                     Text(
                                       plants[index]['description']!,
                                       style: const TextStyle(
-                                        fontSize: 16, //  تكبير النص الوصفي
+                                        fontSize: 14, //  تكبير النص الوصفي
                                         color: Colors.white70,
                                       ),
                                       textAlign: TextAlign.right,
@@ -150,10 +113,10 @@ class MyPlantsScreen extends StatelessWidget {
                                             Text(
                                               "أضف إلى جدول الري",
                                               style: TextStyle(
-                                                  fontSize: 16,
+                                                  fontSize: 14,
                                                   fontWeight: FontWeight.bold),
                                             ),
-                                            SizedBox(width: 8),
+                                            SizedBox(width: 5),
                                             Icon(Icons.local_drink,
                                                 size: 18,
                                                 color: Colors
@@ -198,8 +161,8 @@ class MyPlantsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 20),
           ],
-        ),
-      ),
+
+
     );
   }
 }

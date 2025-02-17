@@ -1,3 +1,4 @@
+import 'package:bloom_a1/screens/dashboard_screen.dart';
 import 'package:flutter/material.dart';
 import 'home_screen.dart';
 
@@ -129,7 +130,7 @@ class LoginScreen extends StatelessWidget {
         //  النقل إلى الصفحة الرئيسية بعد تسجيل الدخول
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
+          MaterialPageRoute(builder: (context) => const DashboardScreen()),
         );
       },
       style: ElevatedButton.styleFrom(

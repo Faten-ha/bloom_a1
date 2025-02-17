@@ -13,94 +13,55 @@ class _WateringScheduleScreenState extends State<WateringScheduleScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF063D1D)),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          "جدول الري",
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF063D1D),
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(_plantNames.length, (index) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 5),
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _selectedPlantIndex == index
+                          ? const Color(0xFF2A543C) // اللون الغامق للمحدد
+                          : const Color(
+                              0xFFDCE3C6), // اللون الفاتح لغير المحدد
+                      foregroundColor: _selectedPlantIndex == index
+                          ? Colors.white
+                          : Colors.black,
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 12, horizontal: 20),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _selectedPlantIndex = index;
+                      });
+                    },
+                    child: Text(
+                      _plantNames[index],
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                );
+              }),
+            ),
           ),
-        ),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.menu, color: Color(0xFF063D1D)),
-            onPressed: () {},
+          const SizedBox(height: 10),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: _buildCalendar(),
+            ),
           ),
         ],
-      ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              Color(0xFFA9A9A9),
-              Color(0xFF577363),
-              Color(0xFF063D1D),
-            ],
-            stops: [0.0, 0.5, 1.0],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(_plantNames.length, (index) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 5),
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _selectedPlantIndex == index
-                              ? const Color(0xFF4D6B50) // اللون الغامق للمحدد
-                              : const Color(
-                                  0xFFDCE3C6), // اللون الفاتح لغير المحدد
-                          foregroundColor: _selectedPlantIndex == index
-                              ? Colors.white
-                              : Colors.black,
-                          padding: const EdgeInsets.symmetric(
-                              vertical: 12, horizontal: 20),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(15),
-                          ),
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _selectedPlantIndex = index;
-                          });
-                        },
-                        child: Text(
-                          _plantNames[index],
-                          style: const TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    );
-                  }),
-                ),
-              ),
-              const SizedBox(height: 10),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  child: _buildCalendar(),
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

@@ -17,9 +17,10 @@ dependencies:
   provider: ^6.1.2
   shared_preferences: ^2.2.3
   animations: ^2.0.7
-  speech_to_text: ^6.1.1   # مكتبة التعرف على الصوت
+  #speech_to_text: ^6.1.1   # مكتبة التعرف على الصوت
   logging: ^1.0.0          # مكتبة تسجيل الأحداث
   http: ^0.13.4            # تم تصحيحه وإضافته داخل dependencies
+  speech_to_text: ^7.0.0
 
 dev_dependencies:
   flutter_test:
