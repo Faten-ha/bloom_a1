@@ -61,7 +61,7 @@ class _HomeScreenState extends State<HomeScreen> {
         if (text == "اكتشف نبتتك") {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => const CameraScreen()),
+            MaterialPageRoute(builder: (context) => CameraScreen()),
           );
         }
       },

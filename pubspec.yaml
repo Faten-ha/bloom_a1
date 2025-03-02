@@ -12,7 +12,7 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.8
-  image_picker: ^1.0.7
+  image_picker: ^1.0.7 #A Flutter plugin for iOS and Android for picking images from the image library, and taking new pictures with the camera.
   path_provider: ^2.1.2
   provider: ^6.1.2
   shared_preferences: ^2.2.3
@@ -20,7 +20,11 @@ dependencies:
   #speech_to_text: ^6.1.1   # مكتبة التعرف على الصوت
   logging: ^1.0.0          # مكتبة تسجيل الأحداث
   http: ^0.13.4            # تم تصحيحه وإضافته داخل dependencies
-  speech_to_text: ^7.0.0
+  speech_to_text: ^7.0.0 # مكتبة التعرف على الصوت
+  tflite_flutter: ^0.11.0 # Tensorflow library to use ML model for detect plant Classifier
+  #tflite_flutter: ^0.10.4
+  image: ^4.0.17 # Image Library provides the ability to load, save, and manipulate images in a variety of image file formats.
+  get: ^4.7.2 #state management library is best and more easy from provider
 
 dev_dependencies:
   flutter_test:
@@ -33,4 +37,6 @@ flutter:
     - assets/images/Logo_bloom.png
     - assets/images/plant1.png
     - assets/images/plant2.png
-    - assets/images/chat.png 
+    - assets/images/chat.png
+    - assets/class_mapping.json
+    - assets/plant_model.tflite
