@@ -21,7 +21,6 @@ class SplashScreenState extends State<SplashScreen> {
     _speechToText = stt.SpeechToText();
   }
 
-  // بدء الاستماع للأوامر الصوتية
   void _startListening() async {
     bool available = await _speechToText.initialize(
       onStatus: (status) => debugPrint("🎤 Status: $status"),
@@ -48,7 +47,6 @@ class SplashScreenState extends State<SplashScreen> {
     }
   }
 
-  // تنفيذ الأوامر الصوتية بعد التعرف عليها
   void _handleVoiceCommand(String command) {
     if (command.trim().isEmpty) {
       debugPrint("⚠️ تم استقبال نص فارغ، يتم تجاهله...");
@@ -93,7 +91,7 @@ class SplashScreenState extends State<SplashScreen> {
       commandRecognized = true;
     }
     if (command.contains("خروج") || command.contains("إيقاف")) {
-      debugPrint("👋 يتم إيقاف التطبيق!");
+      debugPrint(" يتم إيقاف التطبيق!");
       commandRecognized = true;
     }
 
@@ -175,9 +173,8 @@ class SplashScreenState extends State<SplashScreen> {
             ElevatedButton(
               onPressed: _startListening,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(
-                    0xFFCDD4BA), // ✅ تغيير لون زر "استماع للأوامر الصوتية"
-                foregroundColor: Colors.black, // ✅ جعل النص باللون الأسود
+                backgroundColor: const Color(0xFFCDD4BA),
+                foregroundColor: Colors.black,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(30)),
                 padding:

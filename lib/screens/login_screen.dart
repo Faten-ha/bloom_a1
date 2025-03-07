@@ -1,9 +1,109 @@
-import 'package:bloom_a1/screens/dashboard_screen.dart';
 import 'package:flutter/material.dart';
 import 'home_screen.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
+
+  @override
+  _LoginScreenState createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  late stt.SpeechToText _speechToText;
+  bool _isListening = false;
+  String _recognizedText = "";
+
+  @override
+  void initState() {
+    super.initState();
+    _speechToText = stt.SpeechToText();
+    _initializeSpeechToText();
+  }
+
+  void _initializeSpeechToText() async {
+    bool available = await _speechToText.initialize(
+      onStatus: (status) => debugPrint("🎤 Status: $status"),
+      onError: (error) => debugPrint("⚠️ Error: $error"),
+    );
+
+    if (!available) {
+      debugPrint("🚨 التعرف على الصوت غير متاح");
+      _showSnackbar("🚨 التعرف على الصوت غير متاح");
+    }
+  }
+
+  void _startListening() async {
+    if (!_isListening) {
+      bool available = await _speechToText.initialize(
+        onStatus: (status) => debugPrint("🎤 Status: $status"),
+        onError: (error) => debugPrint("⚠️ Error: $error"),
+      );
+
+      if (available) {
+        setState(() => _isListening = true);
+        debugPrint("🎤 بدء الاستماع...");
+        _showSnackbar("🎤 بدء الاستماع...");
+
+        _speechToText.listen(
+          localeId: "ar_SA",
+          onResult: (result) {
+            setState(() => _recognizedText = result.recognizedWords);
+            debugPrint("🎙️ تم التعرف على: $_recognizedText");
+
+            if (_recognizedText.length >= 4) {
+              _handleVoiceCommand(_recognizedText);
+            }
+          },
+        );
+      } else {
+        debugPrint("🚨 التعرف على الصوت غير متاح");
+        _showSnackbar("🚨 التعرف على الصوت غير متاح");
+      }
+    }
+  }
+
+  void _handleVoiceCommand(String command) {
+    command = command.trim().toLowerCase();
+    debugPrint("🔍 تحليل الأمر: $command");
+
+    bool commandRecognized = false;
+
+    if (command.contains("تسجيل دخول") || command.contains("دخول")) {
+      debugPrint("✅ تنفيذ: تسجيل دخول");
+      _navigateToHomeScreen();
+      commandRecognized = true;
+    }
+
+    if (!commandRecognized) {
+      debugPrint("❌ لم يتم التعرف على الأمر! - النص المستلم: $command");
+      _showSnackbar("❌ لم يتم التعرف على الأمر!");
+    }
+
+    _stopListening();
+  }
+
+  void _stopListening() {
+    if (_isListening) {
+      _speechToText.stop();
+      setState(() => _isListening = false);
+      debugPrint("🛑 توقف الاستماع...");
+    }
+  }
+
+  void _navigateToHomeScreen() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const HomeScreen()),
+    );
+    debugPrint("🏠 الانتقال إلى الصفحة الرئيسية...");
+  }
+
+  void _showSnackbar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -12,9 +112,9 @@ class LoginScreen extends StatelessWidget {
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              Color(0xFF063D1D), // 0% أخضر داكن
-              Color(0xFF577363), // 68% أخضر معتدل
-              Color(0xFFA9A9A9), // 100% رمادي
+              Color(0xFF063D1D),
+              Color(0xFF577363),
+              Color(0xFFA9A9A9),
             ],
             stops: [0.0, 0.68, 1.0],
             begin: Alignment.topCenter,
@@ -29,6 +129,23 @@ class LoginScreen extends StatelessWidget {
               height: 274,
               width: 281,
               fit: BoxFit.cover,
+            ),
+            const SizedBox(height: 40),
+            ElevatedButton(
+              onPressed: _startListening,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Color(0xFFCDD4BA),
+                foregroundColor: Colors.black,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 25, vertical: 10),
+                elevation: 5,
+              ),
+              child: const Text(
+                "🎤 استماع للأوامر الصوتية",
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+              ),
             ),
             const SizedBox(height: 40),
             Expanded(
@@ -92,8 +209,7 @@ class LoginScreen extends StatelessWidget {
       decoration: InputDecoration(
         suffixIcon: icon == Icons.phone
             ? Padding(
-                padding:
-                    const EdgeInsets.only(right: 18), // إضافة التباعد للأيقونة
+                padding: const EdgeInsets.only(right: 18),
                 child: Transform.rotate(
                   angle: 4.5,
                   child: Icon(
@@ -104,8 +220,7 @@ class LoginScreen extends StatelessWidget {
                 ),
               )
             : Padding(
-                padding: const EdgeInsets.only(
-                    right: 18), //  إضافة التباعد لأيقونة القفل
+                padding: const EdgeInsets.only(right: 18),
                 child: Icon(
                   icon,
                   color: Color(0xFF577363),
@@ -127,10 +242,9 @@ class LoginScreen extends StatelessWidget {
   Widget _buildButton(BuildContext context, {required String text}) {
     return ElevatedButton(
       onPressed: () {
-        //  النقل إلى الصفحة الرئيسية بعد تسجيل الدخول
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const DashboardScreen()),
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
         );
       },
       style: ElevatedButton.styleFrom(
