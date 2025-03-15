@@ -39,4 +39,5 @@ flutter:
     - assets/images/plant2.png
     - assets/images/chat.png
     - assets/class_mapping.json
+    - assets/plant_info.json
     - assets/plant_model.tflite

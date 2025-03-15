@@ -2,17 +2,24 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'dart:convert';
 
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 import 'package:tflite_flutter/tflite_flutter.dart';
 import 'package:flutter/services.dart' show rootBundle;
 
+import '../models/plant_model.dart';
+import '../screens/plant_info_screen.dart';
+
 class PlantClassifierController extends GetxController {
   var imageFile = Rx<File?>(null); // Observable imageFile
   final ImagePicker picker = ImagePicker();
   Interpreter? interpreter;
   Map<int, String> labels = {};
+  //plant info from json
+  Map<int, Plant> plantInfo = {};
+  var plant = Rx<Plant?>(null); // كائن النبات المتوقع
   var prediction = "".obs;
   var probabilitiesText = "".obs; //  VARIABLE for probability values
   static const int inputSize = 224;
@@ -34,6 +41,9 @@ class PlantClassifierController extends GetxController {
   Future<void> loadLabels() async {
     String jsonString =
         await rootBundle.loadString("assets/class_mapping.json");
+    String jsonInfo = await rootBundle.loadString("assets/plant_info.json");
+    // تحميل معلومات النبات
+    plantInfo = Plant.fromJsonMap(json.decode(jsonInfo));
     Map<String, dynamic> jsonMap = json.decode(jsonString);
     labels = jsonMap.map((key, value) => MapEntry(value, key));
   }
@@ -89,6 +99,12 @@ class PlantClassifierController extends GetxController {
         .map((entry) =>
             "${labels[entry.key] ?? 'Unknown'}: ${(entry.value * 100).toStringAsFixed(2)}%")
         .join("\n");
+
+    /// الحصول على معلومات النبات من `plantInfo`
+    if (plantInfo.containsKey(predictedIndex)) {
+      plant.value = plantInfo[predictedIndex]!; // تعيين كائن النبات
+      Get.to(() => PlantInfoScreen()); // الانتقال إلى شاشة المعلومات
+    }
   }
 
   // Pick an image from Camera or Gallery and call classifyImage
