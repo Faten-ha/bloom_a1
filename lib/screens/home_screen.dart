@@ -4,8 +4,6 @@ import 'camera_screen.dart';
 import 'watering_schedule_screen.dart';
 import 'chatbot_screen.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
-import 'package:geolocator/geolocator.dart';
-import 'weather_service.dart'; // استيراد خدمة الطقس
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,17 +17,12 @@ class _HomeScreenState extends State<HomeScreen> {
   late stt.SpeechToText _speechToText;
   bool _isListening = false;
   String _recognizedText = "";
-  final WeatherService _weatherService =
-      WeatherService(); // إنشاء كائن من خدمة الطقس
-  Map<String, dynamic>? _weatherData; // بيانات الطقس
-  bool _isLoading = false; // حالة التحميل
 
   @override
   void initState() {
     super.initState();
     _speechToText = stt.SpeechToText();
     _initializeSpeechToText();
-    _fetchWeather(); // جلب بيانات الطقس عند بدء التشغيل
   }
 
   void _initializeSpeechToText() async {
@@ -40,27 +33,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (!available) {
       _showSnackbar("التعرف على الكلام غير متاح!");
-    }
-  }
-
-  // دالة لجلب بيانات الطقس بناءً على الموقع
-  Future<void> _fetchWeather() async {
-    setState(() {
-      _isLoading = true;
-    });
-    try {
-      Position position = await Geolocator.getCurrentPosition();
-      final weatherData = await _weatherService.getWeather(
-          position.latitude, position.longitude);
-      setState(() {
-        _weatherData = weatherData;
-      });
-    } catch (e) {
-      _showSnackbar("فشل في جلب بيانات الطقس: $e");
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
     }
   }
 
@@ -79,13 +51,6 @@ class _HomeScreenState extends State<HomeScreen> {
         listenFor: const Duration(seconds: 10),
         pauseFor: const Duration(seconds: 3),
       );
-    }
-  }
-
-  void _stopListening() {
-    if (_isListening) {
-      _speechToText.stop();
-      setState(() => _isListening = false);
     }
   }
 
@@ -133,6 +98,13 @@ class _HomeScreenState extends State<HomeScreen> {
     _stopListening();
   }
 
+  void _stopListening() {
+    if (_isListening) {
+      _speechToText.stop();
+      setState(() => _isListening = false);
+    }
+  }
+
   void _navigateToMyPlantsScreen() {
     Navigator.push(
       context,
@@ -175,7 +147,6 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _selectedIndex = index;
     });
-
     if (index == 1) {
       Navigator.pushReplacement(
         context,
@@ -325,38 +296,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 10),
             _buildCareTools(),
-            const SizedBox(height: 20),
-            // عرض بيانات الطقس
-            if (_isLoading)
-              const CircularProgressIndicator()
-            else if (_weatherData != null)
-              Card(
-                color: const Color(0xFFDCE3C6),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      Text(
-                        'الطقس في ${_weatherData!['name']}',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF204D32),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        'درجة الحرارة: ${_weatherData!['main']['temp']}°C',
-                        style: const TextStyle(fontSize: 16),
-                      ),
-                      Text(
-                        'الحالة: ${_weatherData!['weather'][0]['description']}',
-                        style: const TextStyle(fontSize: 16),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
           ],
         ),
       ),

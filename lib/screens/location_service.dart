@@ -1,7 +1,8 @@
+import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 
 class LocationService {
-  Future<Position?> getCurrentLocation() async {
+  Future<Position?> getCurrentLocation(BuildContext context) async {
     bool serviceEnabled;
     LocationPermission permission;
 
@@ -26,7 +27,44 @@ class LocationService {
           'تم رفض الإذن نهائيًا. يرجى تمكينه من إعدادات الهاتف.');
     }
 
-    // الحصول على الموقع الحالي
-    return await Geolocator.getCurrentPosition();
+    // فتح نافذة حوار تطلب من المستخدم السماح باستخدام موقعه
+    bool shouldGetLocation = await _showLocationDialog(context);
+
+    if (shouldGetLocation) {
+      // الحصول على الموقع الحالي
+      return await Geolocator.getCurrentPosition();
+    } else {
+      return Future.error('لم يتم تفعيل الموقع.');
+    }
+  }
+
+  Future<bool> _showLocationDialog(BuildContext context) async {
+    bool result = false;
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text("مشاركة الموقع"),
+          content: Text("هل ترغب في مشاركة موقعك الحالي؟"),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(false);
+              },
+              child: Text("لا"),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(true);
+              },
+              child: Text("نعم"),
+            ),
+          ],
+        );
+      },
+    ).then((value) {
+      result = value ?? false;
+    });
+    return result;
   }
 }
