@@ -1,9 +1,12 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'my_plants_screen.dart';
 import 'camera_screen.dart';
 import 'watering_schedule_screen.dart';
 import 'chatbot_screen.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:http/http.dart' as http;
+import 'package:geolocator/geolocator.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -17,6 +20,14 @@ class _HomeScreenState extends State<HomeScreen> {
   late stt.SpeechToText _speechToText;
   bool _isListening = false;
   String _recognizedText = "";
+  String location = "جاري تحديد الموقع...";
+  String temperature = "--";
+  String weatherCondition = "--";
+
+  // استبدل بمفتاح API الخاص بك
+  final String apiKey =
+      'b01dc45cfcba6f0c02852a856dd97f29'; // تم وضع المفتاح هنا
+  final String baseUrl = 'https://api.openweathermap.org/data/2.5/weather';
 
   @override
   void initState() {
@@ -89,6 +100,12 @@ class _HomeScreenState extends State<HomeScreen> {
         command.contains("شات بوت")) {
       _navigateToChatBotScreen();
       commandRecognized = true;
+    } else if (command.contains("طقس") ||
+        command.contains("الطقس") ||
+        command.contains("حالة الجو") ||
+        command.contains("الحرارة")) {
+      _showWeatherDialog();
+      commandRecognized = true;
     }
 
     if (!commandRecognized) {
@@ -144,30 +161,185 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
     if (index == 1) {
-      Navigator.pushReplacement(
+      Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => MyPlantsScreen()),
       );
     } else if (index == 2) {
-      Navigator.pushReplacement(
+      Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => CameraScreen()),
       );
     } else if (index == 3) {
-      Navigator.pushReplacement(
+      Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => WateringScheduleScreen()),
       );
     } else if (index == 4) {
-      Navigator.pushReplacement(
+      Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => ChatBotScreen()),
       );
+    } else {
+      setState(() {
+        _selectedIndex = index;
+      });
     }
+  }
+
+  // إضافة الدالة لإظهار الحوار
+  void _showWeatherDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text("هل ترغب في مشاركة الموقع وحالة الطقس؟"),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(context); // إغلاق الحوار
+                await _fetchWeatherData(); // جلب الموقع وحالة الطقس
+              },
+              child: Text("نعم"),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context); // إغلاق الحوار
+              },
+              child: Text("لا"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // دالة جلب البيانات
+  Future<void> _fetchWeatherData() async {
+    try {
+      // عرض رسالة للمستخدم
+      _showSnackbar("جاري الحصول على الموقع وبيانات الطقس...");
+
+      Position? position = await _determinePosition();
+      if (position != null) {
+        setState(() {
+          location =
+              "خط العرض: ${position.latitude}, خط الطول: ${position.longitude}";
+        });
+        // بعد الحصول على الموقع، جلب بيانات الطقس
+        await _getWeatherData(position.latitude, position.longitude);
+      }
+    } catch (e) {
+      setState(() {
+        location = "خطأ في تحديد الموقع";
+      });
+      _showSnackbar("خطأ في تحديد الموقع: ${e.toString()}");
+      debugPrint("Error in _fetchWeatherData: $e");
+    }
+  }
+
+  // دالة للحصول على الموقع
+  Future<Position?> _determinePosition() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    try {
+      // التحقق من تفعيل خدمة الموقع
+      serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        _showSnackbar("خدمة الموقع غير مفعلة. يرجى تفعيل GPS من الإعدادات.");
+        return null;
+      }
+
+      // التحقق من الأذونات
+      permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          _showSnackbar("تم رفض إذن الموقع.");
+          return null;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        _showSnackbar("تم رفض الإذن نهائيًا. يرجى تمكينه من إعدادات الهاتف.");
+        return null;
+      }
+
+      // الحصول على الموقع
+      return await Geolocator.getCurrentPosition();
+    } catch (e) {
+      debugPrint("Error in _determinePosition: $e");
+      _showSnackbar("خطأ في تحديد الموقع");
+      return null;
+    }
+  }
+
+  // دالة لجلب بيانات الطقس
+  Future<void> _getWeatherData(double lat, double lon) async {
+    try {
+      final response = await http.get(
+        Uri.parse(
+            '$baseUrl?lat=$lat&lon=$lon&appid=$apiKey&units=metric&lang=ar'), // استخدام وحدات القياس المترية واللغة العربية
+      );
+
+      if (response.statusCode == 200) {
+        var data = json.decode(response.body);
+        setState(() {
+          temperature = "${data['main']['temp']}°C"; // درجة الحرارة
+          weatherCondition = data['weather'][0]['description']; // حالة الطقس
+        });
+
+        // عرض بيانات الطقس في نافذة منبثقة
+        _showWeatherDataDialog();
+      } else {
+        debugPrint('خطأ في الاتصال بـ API: ${response.statusCode}');
+        setState(() {
+          temperature = "--";
+          weatherCondition = "خطأ في جلب البيانات";
+        });
+        _showSnackbar("فشل في جلب بيانات الطقس: ${response.statusCode}");
+      }
+    } catch (e) {
+      debugPrint('حدث خطأ في _getWeatherData: $e');
+      setState(() {
+        temperature = "--";
+        weatherCondition = "خطأ في جلب البيانات";
+      });
+      _showSnackbar("حدث خطأ أثناء جلب بيانات الطقس");
+    }
+  }
+
+  // دالة لعرض بيانات الطقس في نافذة منبثقة
+  void _showWeatherDataDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text("معلومات الطقس"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text("الموقع: $location"),
+              SizedBox(height: 10),
+              Text("درجة الحرارة: $temperature"),
+              SizedBox(height: 10),
+              Text("حالة الطقس: $weatherCondition"),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: Text("موافق"),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -177,11 +349,11 @@ class _HomeScreenState extends State<HomeScreen> {
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              const Color(0xFFA9A9A9),
-              const Color(0xFF577363),
-              const Color(0xFF063D1D),
+              Color(0xFFA9A9A9),
+              Color(0xFF577363),
+              Color(0xFF063D1D),
             ],
-            stops: const [0.0, 0.5, 1.0],
+            stops: [0.0, 0.5, 1.0],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
@@ -222,11 +394,11 @@ class _HomeScreenState extends State<HomeScreen> {
                               children: [
                                 GestureDetector(
                                   onTap: () {
-                                    Navigator.pop(context);
                                     Navigator.pushReplacement(
                                       context,
                                       MaterialPageRoute(
-                                          builder: (context) => HomeScreen()),
+                                          builder: (context) =>
+                                              const HomeScreen()),
                                     );
                                   },
                                   child: Container(
@@ -236,7 +408,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                       color: const Color(0xFF577363),
                                       borderRadius: BorderRadius.circular(12),
                                     ),
-                                    child: const Center(
+                                    child: Center(
                                       child: Text(
                                         'تسجيل خروج',
                                         style: TextStyle(
@@ -300,15 +472,10 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
       bottomNavigationBar: _buildBottomNavBar(),
-      floatingActionButton: GestureDetector(
-        onLongPress: () {
-          _navigateToChatBotScreen();
-        },
-        child: FloatingActionButton(
-          onPressed: _startListening,
-          backgroundColor: const Color(0xFFCDD4BA),
-          child: const Icon(Icons.mic, color: Colors.black),
-        ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _startListening,
+        backgroundColor: Color(0xFFCDD4BA),
+        child: const Icon(Icons.mic, color: Colors.black),
       ),
     );
   }
@@ -321,6 +488,8 @@ class _HomeScreenState extends State<HomeScreen> {
             context,
             MaterialPageRoute(builder: (context) => CameraScreen()),
           );
+        } else if (text == "ابحث عن نبتتك") {
+          _navigateToMyPlantsScreen();
         }
       },
       child: Padding(
@@ -372,7 +541,7 @@ class _HomeScreenState extends State<HomeScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           _buildToolButton("جدول الري", Icons.water_drop),
-          _buildToolButton("الموقع وحالة الطقس", Icons.eco),
+          _buildToolButton("الموقع وحالة الطقس", Icons.wb_sunny),
         ],
       ),
     );
@@ -386,6 +555,8 @@ class _HomeScreenState extends State<HomeScreen> {
             context,
             MaterialPageRoute(builder: (context) => WateringScheduleScreen()),
           );
+        } else if (text == "الموقع وحالة الطقس") {
+          _showWeatherDialog(); // عرض الحوار للموافقة
         }
       },
       child: Container(
