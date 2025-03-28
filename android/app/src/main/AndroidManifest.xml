@@ -1,5 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.example.bloom_a1"> <!-- تأكد من صحة اسم الحزمة -->
+    package="com.example.bloom_a1">
 
     <!-- إذن الميكروفون -->
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
@@ -8,6 +8,14 @@
     <!-- إذن الوصول إلى الموقع -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    
+    <!-- إذن المعالجة الصوتية -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT"/>
+            <data android:mimeType="text/plain"/>
+        </intent>
+    </queries>
 
     <application
         android:label="bloom_a1"
@@ -37,15 +45,5 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
-
     </application>
-
-    <!-- إذن المعالجة الصوتية -->
-    <queries>
-        <intent>
-            <action android:name="android.intent.action.PROCESS_TEXT"/>
-            <data android:mimeType="text/plain"/>
-        </intent>
-    </queries>
-
 </manifest>

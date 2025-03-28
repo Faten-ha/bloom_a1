@@ -23,10 +23,9 @@ class _HomeScreenState extends State<HomeScreen> {
   String location = "جاري تحديد الموقع...";
   String temperature = "--";
   String weatherCondition = "--";
+  bool _isLoading = false;
 
-  // استبدل بمفتاح API الخاص بك
-  final String apiKey =
-      'b01dc45cfcba6f0c02852a856dd97f29'; // تم وضع المفتاح هنا
+  final String apiKey = 'b01dc45cfcba6f0c02852a856dd97f29';
   final String baseUrl = 'https://api.openweathermap.org/data/2.5/weather';
 
   @override
@@ -188,7 +187,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // إضافة الدالة لإظهار الحوار
   void _showWeatherDialog() {
     showDialog(
       context: context,
@@ -198,14 +196,14 @@ class _HomeScreenState extends State<HomeScreen> {
           actions: [
             TextButton(
               onPressed: () async {
-                Navigator.pop(context); // إغلاق الحوار
-                await _fetchWeatherData(); // جلب الموقع وحالة الطقس
+                Navigator.pop(context);
+                await _fetchWeatherData();
               },
               child: Text("نعم"),
             ),
             TextButton(
               onPressed: () {
-                Navigator.pop(context); // إغلاق الحوار
+                Navigator.pop(context);
               },
               child: Text("لا"),
             ),
@@ -215,19 +213,15 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // دالة جلب البيانات
   Future<void> _fetchWeatherData() async {
+    setState(() => _isLoading = true);
     try {
-      // عرض رسالة للمستخدم
-      _showSnackbar("جاري الحصول على الموقع وبيانات الطقس...");
-
       Position? position = await _determinePosition();
       if (position != null) {
         setState(() {
           location =
               "خط العرض: ${position.latitude}, خط الطول: ${position.longitude}";
         });
-        // بعد الحصول على الموقع، جلب بيانات الطقس
         await _getWeatherData(position.latitude, position.longitude);
       }
     } catch (e) {
@@ -236,62 +230,52 @@ class _HomeScreenState extends State<HomeScreen> {
       });
       _showSnackbar("خطأ في تحديد الموقع: ${e.toString()}");
       debugPrint("Error in _fetchWeatherData: $e");
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
-  // دالة للحصول على الموقع
   Future<Position?> _determinePosition() async {
     bool serviceEnabled;
     LocationPermission permission;
 
-    try {
-      // التحقق من تفعيل خدمة الموقع
-      serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        _showSnackbar("خدمة الموقع غير مفعلة. يرجى تفعيل GPS من الإعدادات.");
-        return null;
-      }
-
-      // التحقق من الأذونات
-      permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          _showSnackbar("تم رفض إذن الموقع.");
-          return null;
-        }
-      }
-
-      if (permission == LocationPermission.deniedForever) {
-        _showSnackbar("تم رفض الإذن نهائيًا. يرجى تمكينه من إعدادات الهاتف.");
-        return null;
-      }
-
-      // الحصول على الموقع
-      return await Geolocator.getCurrentPosition();
-    } catch (e) {
-      debugPrint("Error in _determinePosition: $e");
-      _showSnackbar("خطأ في تحديد الموقع");
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      _showSnackbar("خدمة الموقع غير مفعلة. يرجى تفعيل GPS من الإعدادات.");
       return null;
     }
+
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        _showSnackbar("تم رفض إذن الموقع.");
+        return null;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      _showSnackbar("تم رفض الإذن نهائيًا. يرجى تمكينه من إعدادات الهاتف.");
+      return null;
+    }
+
+    return await Geolocator.getCurrentPosition();
   }
 
-  // دالة لجلب بيانات الطقس
   Future<void> _getWeatherData(double lat, double lon) async {
     try {
       final response = await http.get(
         Uri.parse(
-            '$baseUrl?lat=$lat&lon=$lon&appid=$apiKey&units=metric&lang=ar'), // استخدام وحدات القياس المترية واللغة العربية
+            '$baseUrl?lat=$lat&lon=$lon&appid=$apiKey&units=metric&lang=ar'),
       );
 
       if (response.statusCode == 200) {
         var data = json.decode(response.body);
         setState(() {
-          temperature = "${data['main']['temp']}°C"; // درجة الحرارة
-          weatherCondition = data['weather'][0]['description']; // حالة الطقس
+          temperature = "${data['main']['temp']}°C";
+          weatherCondition = data['weather'][0]['description'];
         });
 
-        // عرض بيانات الطقس في نافذة منبثقة
         _showWeatherDataDialog();
       } else {
         debugPrint('خطأ في الاتصال بـ API: ${response.statusCode}');
@@ -311,7 +295,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // دالة لعرض بيانات الطقس في نافذة منبثقة
   void _showWeatherDataDialog() {
     showDialog(
       context: context,
@@ -556,7 +539,7 @@ class _HomeScreenState extends State<HomeScreen> {
             MaterialPageRoute(builder: (context) => WateringScheduleScreen()),
           );
         } else if (text == "الموقع وحالة الطقس") {
-          _showWeatherDialog(); // عرض الحوار للموافقة
+          _showWeatherDialog();
         }
       },
       child: Container(
