@@ -1,4 +1,6 @@
+import 'package:bloom_a1/controller/auth_controller.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'home_screen.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
@@ -13,6 +15,8 @@ class _LoginScreenState extends State<LoginScreen> {
   late stt.SpeechToText _speechToText;
   bool _isListening = false;
   String _recognizedText = "";
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
 
   @override
   void initState() {
@@ -71,7 +75,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (command.contains("تسجيل دخول") || command.contains("دخول")) {
       debugPrint("✅ تنفيذ: تسجيل دخول");
-      _navigateToHomeScreen();
+      login();
       commandRecognized = true;
     }
 
@@ -121,40 +125,40 @@ class _LoginScreenState extends State<LoginScreen> {
             end: Alignment.bottomCenter,
           ),
         ),
-        child: Column(
-          children: [
-            const SizedBox(height: 100),
-            Image.asset(
-              'assets/images/Logo_bloom.png',
-              height: 274,
-              width: 281,
-              fit: BoxFit.cover,
-            ),
-            const SizedBox(height: 40),
-            ElevatedButton(
-              onPressed: _startListening,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0xFFCDD4BA),
-                foregroundColor: Colors.black,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30)),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 25, vertical: 10),
-                elevation: 5,
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              const SizedBox(height: 100),
+              Image.asset(
+                'assets/images/Logo_bloom.png',
+                height: 274,
+                width: 281,
+                fit: BoxFit.cover,
               ),
-              child: const Text(
-                "🎤 استماع للأوامر الصوتية",
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+              const SizedBox(height: 40),
+              ElevatedButton(
+                onPressed: _startListening,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Color(0xFFCDD4BA),
+                  foregroundColor: Colors.black,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 25, vertical: 10),
+                  elevation: 5,
+                ),
+                child: const Text(
+                  "🎤 استماع للأوامر الصوتية",
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                ),
               ),
-            ),
-            const SizedBox(height: 40),
-            Expanded(
-              child: Align(
+              const SizedBox(height: 40),
+              Align(
                 alignment: Alignment.bottomCenter,
                 child: _buildFormContainer(context),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -188,10 +192,15 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           const SizedBox(height: 30),
           _buildTextField(
-              icon: Icons.phone, hintText: "رقم الهاتف أو البريد الإلكتروني"),
+              icon: Icons.phone,
+              hintText: "رقم الهاتف أو البريد الإلكتروني",
+              txtEditingController: emailController),
           const SizedBox(height: 15),
           _buildTextField(
-              icon: Icons.lock, hintText: "الرقم السري", obscureText: true),
+              icon: Icons.lock,
+              hintText: "الرقم السري",
+              obscureText: true,
+              txtEditingController: passwordController),
           const SizedBox(height: 25),
           _buildButton(context, text: "تسجيل الدخول"),
         ],
@@ -202,10 +211,12 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _buildTextField(
       {required IconData icon,
       required String hintText,
+      required TextEditingController txtEditingController,
       bool obscureText = false}) {
     return TextField(
       obscureText: obscureText,
       textAlign: TextAlign.center,
+      controller: txtEditingController,
       decoration: InputDecoration(
         suffixIcon: icon == Icons.phone
             ? Padding(
@@ -241,11 +252,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Widget _buildButton(BuildContext context, {required String text}) {
     return ElevatedButton(
-      onPressed: () {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
-        );
+      onPressed: () async {
+        await login();
       },
       style: ElevatedButton.styleFrom(
         backgroundColor: Color(0xFF577363),
@@ -262,5 +270,22 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       ),
     );
+  }
+
+  login() async {
+    if (emailController.text.isEmpty || passwordController.text.isEmpty) {
+      _showSnackbar("الرجاء إدخال البيانات المطلوبة");
+      return;
+    } else {
+      final AuthController authController = Get.find();
+      final result = await authController.login(
+          emailController.text, passwordController.text);
+      if (result == null) {
+        _showSnackbar("تم تسجيل الدخول بنجاح");
+        _navigateToHomeScreen();
+      } else {
+        _showSnackbar(result);
+      }
+    }
   }
 }

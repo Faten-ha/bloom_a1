@@ -346,10 +346,8 @@ class _HomeScreenState extends State<HomeScreen> {
             AppBar(
               backgroundColor: Colors.transparent,
               elevation: 0,
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back, color: Color(0xFF063D1D)),
-                onPressed: () => Navigator.pop(context),
-              ),
+              //no back icon
+              leading: const SizedBox(),
               title: const Text(
                 "الصفحة الرئيسية",
                 style: TextStyle(

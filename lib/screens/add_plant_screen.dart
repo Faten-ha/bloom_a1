@@ -1,10 +1,14 @@
 import 'dart:io';
+import 'package:bloom_a1/controller/plant_controller.dart';
+import 'package:bloom_a1/models/plant_table.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../ML/plant_classifier_controller.dart';
+import '../controller/auth_controller.dart';
 import '../models/plant_model.dart';
+import 'my_plants_screen.dart';
 
-class PlantInfoScreen extends StatelessWidget {
+class AddPlantScreen extends StatelessWidget {
   final PlantClassifierController controller =
       Get.find<PlantClassifierController>();
 
@@ -71,7 +75,8 @@ class PlantInfoScreen extends StatelessWidget {
             ],
           ),
         ),
-        body: Obx(() {
+        body:
+        Obx(() {
           Plant? plant = controller.plant.value;
           File? imageFile = controller.imageFile.value;
 
@@ -122,16 +127,104 @@ class PlantInfoScreen extends StatelessWidget {
                   _buildPlantInfo("الوصف", plant.description),
                   _buildPlantInfo("الضوء", plant.light),
                   _buildPlantInfo("درجة الحرارة", "${plant.temperature}°C"),
-                  _buildPlantInfo("السقاية", " في الاسبوع ${plant.watering}"),
+                  _buildPlantInfo("السقاية", " في الشهر ${plant.watering}"),
                   _buildPlantInfo("التربة", plant.soil),
                   _buildPlantInfo("التسميد", plant.fertilization),
                   _buildPlantInfo("المزايا", plant.benefits),
                   _buildPlantInfo("تحذير", plant.warning),
+                  _buildButton(context, text: "حفظ الى نباتاتي"),
                 ],
               ),
             ),
           );
         }),
+      ),
+    );
+  }
+
+// add new plant to database
+  Widget _buildButton(BuildContext context, {required String text}) {
+    return ElevatedButton(
+      onPressed: () async {
+        final Plant? plant = controller.plant.value;
+        final File? imageFile = controller.imageFile.value;
+
+        if (plant == null || imageFile == null) {
+          Get.snackbar(
+            "خطأ",
+            "لم يتم تحديد نبات أو صورة",
+            colorText: Colors.black,
+            backgroundColor: Colors.red,
+            snackPosition: SnackPosition.BOTTOM,
+          );
+          return;
+        }
+        PlantController plantController = Get.find<PlantController>();
+        // Save image to storage
+        final imagePath =
+            await plantController.saveImageToAppStorage(imageFile);
+
+        // Get userId from AuthController
+        final authController = Get.find<AuthController>();
+        final userId = authController.currentUser.value?.id;
+
+        if (userId == null) {
+          Get.snackbar(
+            "خطأ",
+            "الرجاء تسجيل الدخول أولًا",
+            colorText: Colors.black,
+            backgroundColor: Colors.red,
+            snackPosition: SnackPosition.BOTTOM,
+          );
+          return;
+        }
+
+        final newPlant = PlantTable(
+          name: plant.name,
+          description: plant.description,
+          light: plant.light,
+          temperature: plant.temperature,
+          //watering: plant.watering,
+          summer: '',
+          winter: '',
+          soil: plant.soil,
+          fertilization: plant.fertilization,
+          benefits: plant.benefits,
+          warning: plant.warning,
+          userId: userId,
+          imageUrl: imagePath,
+        );
+
+        // Add new plant to database
+        await plantController.addPlant(newPlant);
+        //delete PlantClassifierController from Memory to reset all content
+        Get.delete<PlantClassifierController>();
+        Get.to(() => MyPlantsScreen());
+      },
+      style:
+      ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFFCDD4BA),
+        foregroundColor: Colors.black,
+        minimumSize: const Size(double.infinity, 50),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+        ),
+        padding: const EdgeInsets.symmetric(
+            vertical: 14, horizontal: 24),
+        elevation: 3,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.save, size: 18, color: Colors.black),
+          SizedBox(width: 5),
+          Text(
+            text,
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+          ),
+
+
+        ],
       ),
     );
   }

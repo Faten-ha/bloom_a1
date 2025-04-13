@@ -10,7 +10,7 @@ import 'package:tflite_flutter/tflite_flutter.dart';
 import 'package:flutter/services.dart' show rootBundle;
 
 import '../models/plant_model.dart';
-import '../screens/plant_info_screen.dart';
+import '../screens/add_plant_screen.dart';
 
 class PlantClassifierController extends GetxController {
   var imageFile = Rx<File?>(null); // Observable imageFile
@@ -103,7 +103,7 @@ class PlantClassifierController extends GetxController {
     /// الحصول على معلومات النبات من `plantInfo`
     if (plantInfo.containsKey(predictedIndex)) {
       plant.value = plantInfo[predictedIndex]!; // تعيين كائن النبات
-      Get.to(() => PlantInfoScreen()); // الانتقال إلى شاشة المعلومات
+      Get.to(() => AddPlantScreen()); // الانتقال إلى شاشة المعلومات
     }
   }
 

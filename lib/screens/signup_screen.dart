@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:get/get_core/src/get_main.dart';
+import '../controller/auth_controller.dart';
 import 'home_screen.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
@@ -13,6 +16,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
   late stt.SpeechToText _speechToText;
   bool _isListening = false;
   String _recognizedText = "";
+  //emailController,passwordController,confirmController
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+  final TextEditingController confirmController = TextEditingController();
 
   @override
   void initState() {
@@ -73,15 +80,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
         command.contains("حساب") ||
         command.contains("تسجيل جديد")) {
       debugPrint("✅ تنفيذ: إنشاء حساب");
-      _navigateToHomeScreen();
       commandRecognized = true;
+      signUp();
     }
 
     if (!commandRecognized) {
       debugPrint("❌ لم يتم التعرف على الأمر! - النص المستلم: $command");
       _showSnackbar("❌ لم يتم التعرف على الأمر!");
     }
-
     _stopListening();
   }
 
@@ -177,31 +183,39 @@ class _SignUpScreenState extends State<SignUpScreen> {
           ),
         ],
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            "إنشاء حساب",
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF20272B),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              "إنشاء حساب",
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF20272B),
+              ),
             ),
-          ),
-          const SizedBox(height: 30),
-          _buildTextField(
-              icon: Icons.phone, hintText: "رقم الهاتف أو البريد الإلكتروني"),
-          const SizedBox(height: 15),
-          _buildTextField(
-              icon: Icons.lock, hintText: "الرقم السري", obscureText: true),
-          const SizedBox(height: 15),
-          _buildTextField(
-              icon: Icons.lock,
-              hintText: "تأكيد الرقم السري",
-              obscureText: true),
-          const SizedBox(height: 25),
-          _buildButton(context, text: "إنشاء حساب"),
-        ],
+            const SizedBox(height: 30),
+            _buildTextField(
+                icon: Icons.phone,
+                hintText: "رقم الهاتف أو البريد الإلكتروني",
+                txtEditingController: emailController),
+            const SizedBox(height: 15),
+            _buildTextField(
+                icon: Icons.lock,
+                hintText: "الرقم السري",
+                txtEditingController: passwordController,
+                obscureText: true),
+            const SizedBox(height: 15),
+            _buildTextField(
+                icon: Icons.lock,
+                hintText: "تأكيد الرقم السري",
+                txtEditingController: confirmController,
+                obscureText: true),
+            const SizedBox(height: 25),
+            _buildButton(context, text: "إنشاء حساب"),
+          ],
+        ),
       ),
     );
   }
@@ -209,11 +223,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
   Widget _buildTextField(
       {required IconData icon,
       required String hintText,
+      required TextEditingController txtEditingController,
       bool obscureText = false}) {
     return TextField(
       obscureText: obscureText,
       style: TextStyle(),
       textAlign: TextAlign.center,
+      controller: txtEditingController,
       decoration: InputDecoration(
         suffixIcon: Padding(
           padding: const EdgeInsets.only(top: 8),
@@ -248,11 +264,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   Widget _buildButton(BuildContext context, {required String text}) {
     return ElevatedButton(
       onPressed: () {
-        _showSnackbar("✅ تم إنشاء الحساب بنجاح!");
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => HomeScreen()),
-        );
+        signUp();
       },
       style: ElevatedButton.styleFrom(
         backgroundColor: Color(0xFF577363),
@@ -269,5 +281,26 @@ class _SignUpScreenState extends State<SignUpScreen> {
         ),
       ),
     );
+  }
+
+  signUp() async {
+    if (emailController.text.isEmpty || passwordController.text.isEmpty) {
+      _showSnackbar("الرجاء إدخال البيانات المطلوبة");
+      return;
+    }
+    if (passwordController.text != confirmController.text) {
+      _showSnackbar("كلمة السر غير متطابقة");
+      return;
+    } else {
+      final AuthController authController = Get.find();
+      final result = await authController.signUp(
+          emailController.text, passwordController.text);
+      if (result == null) {
+        _showSnackbar("✅ تم إنشاء الحساب بنجاح!");
+        _navigateToHomeScreen();
+      } else {
+        _showSnackbar(result);
+      }
+    }
   }
 }

@@ -1,4 +1,8 @@
+import 'package:bloom_a1/controller/auth_controller.dart';
+import 'package:bloom_a1/controller/plant_controller.dart';
+import 'package:bloom_a1/screens/home_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'signup_screen.dart';
 import 'login_screen.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
@@ -15,10 +19,24 @@ class SplashScreenState extends State<SplashScreen> {
   bool _isListening = false;
   String _recognizedText = "";
 
+  bool _checkingAuth = true;
   @override
   void initState() {
     super.initState();
     _speechToText = stt.SpeechToText();
+
+    Future.delayed(const Duration(seconds: 2), () async {
+      AuthController authController = Get.put(AuthController());
+      await authController.loadUserFromPrefs();
+
+      if (authController.currentUser.value != null) {
+        Get.offAll(() => const HomeScreen());
+      } else {
+        setState(() => _checkingAuth = false);
+      }
+    });
+
+    Get.put(PlantController());
   }
 
   void _startListening() async {
@@ -146,45 +164,48 @@ class SplashScreenState extends State<SplashScreen> {
             end: Alignment.bottomCenter,
           ),
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const SizedBox(height: 30),
-            Image.asset('assets/images/Logo_bloom.png',
-                height: 274, width: 281),
-            const SizedBox(height: 66),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20),
-              child: Text(
-                "ما من مسلم يغرس غرساً أو يزرع زرعاً \n فيأكل منه طير أو إنسان إلا كان له به صدقة",
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
+        child: _checkingAuth
+            ? Center(child: CircularProgressIndicator())
+            : Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const SizedBox(height: 30),
+                  Image.asset('assets/images/Logo_bloom.png',
+                      height: 274, width: 281),
+                  const SizedBox(height: 66),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20),
+                    child: Text(
+                      "ما من مسلم يغرس غرساً أو يزرع زرعاً \n فيأكل منه طير أو إنسان إلا كان له به صدقة",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 50),
+                  _buildButton(context, "إنشاء حساب", const SignUpScreen()),
+                  const SizedBox(height: 25),
+                  _buildButton(context, "تسجيل دخول", const LoginScreen()),
+                  const SizedBox(height: 25),
+                  ElevatedButton(
+                    onPressed: _startListening,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFCDD4BA),
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 40, vertical: 15),
+                    ),
+                    child: const Text("🎤 استماع للأوامر الصوتية",
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold)),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 50),
-            _buildButton(context, "إنشاء حساب", const SignUpScreen()),
-            const SizedBox(height: 25),
-            _buildButton(context, "تسجيل دخول", const LoginScreen()),
-            const SizedBox(height: 25),
-            ElevatedButton(
-              onPressed: _startListening,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFCDD4BA),
-                foregroundColor: Colors.black,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30)),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-              ),
-              child: const Text("🎤 استماع للأوامر الصوتية",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            ),
-          ],
-        ),
       ),
     );
   }

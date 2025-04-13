@@ -1,6 +1,11 @@
+import 'dart:io';
+
+import 'package:bloom_a1/screens/camera_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
-import 'Information.dart';
+import '../controller/plant_controller.dart';
+import 'plant_details_screen.dart';
 import 'watering_schedule_screen.dart';
 import 'home_screen.dart';
 
@@ -12,20 +17,9 @@ class MyPlantsScreen extends StatefulWidget {
 }
 
 class _MyPlantsScreenState extends State<MyPlantsScreen> {
-  static final List<Map<String, dynamic>> plants = [
-    {
-      "name": "كالاثيا زيبربنا",
-      "description": "نبات داخلي بأوراق مخططة",
-      "image": "assets/images/plant1.png",
-      "wateringDays": 3,
-    },
-    {
-      "name": "بوثوس الذهبي",
-      "description": "نبات داخلي متسلق",
-      "image": "assets/images/plant2.png",
-      "wateringDays": 5,
-    }
-  ];
+  PlantController plantController = Get.find<PlantController>();
+
+  String searchText = '';
 
   late stt.SpeechToText _speech;
   bool _isListening = false;
@@ -36,6 +30,7 @@ class _MyPlantsScreenState extends State<MyPlantsScreen> {
     super.initState();
     _speech = stt.SpeechToText();
     _initializeSpeech();
+    plantController.loadPlants();
   }
 
   void _initializeSpeech() async {
@@ -124,21 +119,8 @@ class _MyPlantsScreenState extends State<MyPlantsScreen> {
   }
 
   void showPlantDetails(int index) {
-    if (plants[index]['name'] == "كالاثيا زيبربنا") {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => InformationScreen(),
-        ),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('معلومات ${plants[index]['name']} غير متوفرة حالياً'),
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    }
+    plantController.plantDetailsIndex.value = index;
+    Get.to(() => PlantDetailsScreen());
   }
 
   @override
@@ -192,181 +174,224 @@ class _MyPlantsScreenState extends State<MyPlantsScreen> {
                   ],
                 ),
               ),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: plants.length,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
-                  itemBuilder: (context, index) {
-                    return GestureDetector(
-                      onTap: () => showPlantDetails(index),
-                      child: Container(
-                        margin: const EdgeInsets.only(bottom: 15),
-                        padding: const EdgeInsets.all(15),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF577363),
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color.fromRGBO(0, 0, 0, 0.1),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Hero(
-                              tag: 'plant-image-${plants[index]['name']}',
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(15),
-                                child: Image.asset(
-                                  plants[index]['image']!,
-                                  width: 160,
-                                  height: 140,
-                                  fit: BoxFit.cover,
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: TextField(
+                  textDirection: TextDirection.rtl,
+                  onChanged: (value) {
+                    searchText = value.trim();
+                    plantController.filterPlants(searchText);
+                  },
+                  decoration: InputDecoration(
+                    hintText: '...ابحث عن نبات',
+                    hintStyle: TextStyle(color: Colors.white70),
+                    prefixIcon: Icon(Icons.search, color: Colors.white),
+                    filled: true,
+                    fillColor: Colors.white24,
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                  style: TextStyle(color: Colors.white),
+                  textAlign: TextAlign.right,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Obx(() {
+                if (plantController.filteredPlants.isEmpty) {
+                  return const Center(child: Text("لا يوجد نباتات بعد"));
+                }
+                if (plantController.isLoading.value) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                return Expanded(
+                  child: ListView.builder(
+                    itemCount: plantController.filteredPlants.length,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 15, vertical: 10),
+                    itemBuilder: (context, index) {
+                      return GestureDetector(
+                        onTap: () => showPlantDetails(index),
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 15),
+                          padding: const EdgeInsets.all(15),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF577363),
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color.fromRGBO(0, 0, 0, 0.1),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Hero(
+                                tag:
+                                    'plant-image-${plantController.filteredPlants[index].name}',
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(15),
+                                  child: Image.file(
+                                    width: 160,
+                                    height: 140,
+                                    fit: BoxFit.cover,
+                                    File(plantController
+                                        .filteredPlants[index].imageUrl),
+                                    errorBuilder:
+                                        (context, error, stackTrace) =>
+                                            Icon(Icons.image_not_supported),
+                                  ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      PopupMenuButton<String>(
-                                        icon: const Icon(
-                                          Icons.more_horiz,
-                                          color: Colors.white,
-                                          size: 22,
-                                        ),
-                                        onSelected: (value) {
-                                          if (value == 'water') {
-                                            _navigateToWateringSchedule();
-                                          } else if (value == 'info') {
-                                            showPlantDetails(index);
-                                          }
-                                        },
-                                        itemBuilder: (context) => [
-                                          const PopupMenuItem(
-                                            value: 'water',
-                                            child: Row(
-                                              children: [
-                                                Icon(Icons.water_drop),
-                                                SizedBox(width: 8),
-                                                Text('إضافة للري'),
-                                              ],
-                                            ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        PopupMenuButton<String>(
+                                          icon: const Icon(
+                                            Icons.more_horiz,
+                                            color: Colors.white,
+                                            size: 22,
                                           ),
-                                          const PopupMenuItem(
-                                            value: 'info',
-                                            child: Row(
-                                              children: [
-                                                Icon(Icons.info_outline),
-                                                SizedBox(width: 8),
-                                                Text('تفاصيل'),
-                                              ],
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.end,
-                                          children: [
-                                            Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                      horizontal: 8,
-                                                      vertical: 4),
-                                              decoration: BoxDecoration(
-                                                color: const Color(0xFF2A543C),
-                                                borderRadius:
-                                                    BorderRadius.circular(12),
-                                              ),
-                                              child: Text(
-                                                "كل ${plants[index]['wateringDays']} أيام",
-                                                style: const TextStyle(
-                                                  fontSize: 10,
-                                                  color: Colors.white,
-                                                ),
+                                          onSelected: (value) {
+                                            if (value == 'water') {
+                                              _navigateToWateringSchedule();
+                                            } else if (value == 'info') {
+                                              showPlantDetails(index);
+                                            }
+                                          },
+                                          itemBuilder: (context) => [
+                                            const PopupMenuItem(
+                                              value: 'water',
+                                              child: Row(
+                                                children: [
+                                                  Icon(Icons.water_drop),
+                                                  SizedBox(width: 8),
+                                                  Text('إضافة للري'),
+                                                ],
                                               ),
                                             ),
-                                            const SizedBox(height: 5),
-                                            Text(
-                                              plants[index]['name']!,
-                                              style: const TextStyle(
-                                                fontSize: 22,
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.white,
+                                            const PopupMenuItem(
+                                              value: 'info',
+                                              child: Row(
+                                                children: [
+                                                  Icon(Icons.info_outline),
+                                                  SizedBox(width: 8),
+                                                  Text('تفاصيل'),
+                                                ],
                                               ),
                                             ),
                                           ],
                                         ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 5),
-                                  Text(
-                                    plants[index]['description']!,
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.white70,
-                                    ),
-                                    textAlign: TextAlign.right,
-                                  ),
-                                  const SizedBox(height: 15),
-                                  Align(
-                                    alignment: Alignment.centerRight,
-                                    child: ElevatedButton(
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor:
-                                            const Color(0xFF2A543C),
-                                        foregroundColor: Colors.white,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                        ),
-                                        padding: const EdgeInsets.symmetric(
-                                            vertical: 8, horizontal: 14),
-                                        elevation: 2,
-                                      ),
-                                      onPressed: () {
-                                        _navigateToWateringSchedule();
-                                      },
-                                      child: const Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            "أضف إلى جدول الري",
-                                            style: TextStyle(
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.bold),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.end,
+                                            children: [
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 4),
+                                                decoration: BoxDecoration(
+                                                  color:
+                                                      const Color(0xFF2A543C),
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                ),
+                                                child: Text(
+                                                  "كل ${plantController.filteredPlants[index].summer} أيام",
+                                                  style: const TextStyle(
+                                                    fontSize: 10,
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(height: 5),
+                                              Text(
+                                                plantController
+                                                    .filteredPlants[index].name,
+                                                style: const TextStyle(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            ],
                                           ),
-                                          SizedBox(width: 5),
-                                          Icon(Icons.water_drop,
-                                              size: 18, color: Colors.white),
-                                        ],
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 5),
+                                    Text(
+                                      textDirection: TextDirection.rtl,
+                                      plantController
+                                          .filteredPlants[index].description!,
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.white70,
+                                      ),
+                                      textAlign: TextAlign.right,
+                                    ),
+                                    const SizedBox(height: 15),
+                                    Align(
+                                      alignment: Alignment.centerRight,
+                                      child: ElevatedButton(
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor:
+                                              const Color(0xFF2A543C),
+                                          foregroundColor: Colors.white,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                          ),
+                                          padding: const EdgeInsets.symmetric(
+                                              vertical: 8, horizontal: 14),
+                                          elevation: 2,
+                                        ),
+                                        onPressed: () {
+                                          _navigateToWateringSchedule();
+                                        },
+                                        child: const Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                              "أضف إلى جدول الري",
+                                              style: TextStyle(
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.bold),
+                                            ),
+                                            SizedBox(width: 5),
+                                            Icon(Icons.water_drop,
+                                                size: 18, color: Colors.white),
+                                          ],
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                    );
-                  },
-                ),
-              ),
+                      );
+                    },
+                  ),
+                );
+              }),
               const SizedBox(height: 12),
               Padding(
                 padding:
@@ -384,12 +409,8 @@ class _MyPlantsScreenState extends State<MyPlantsScreen> {
                     elevation: 3,
                   ),
                   onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('قريباً - ستتمكن من إضافة نباتات جديدة'),
-                        duration: Duration(seconds: 2),
-                      ),
-                    );
+                    //add new plant
+                    Get.to(() => CameraScreen());
                   },
                   child: const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
