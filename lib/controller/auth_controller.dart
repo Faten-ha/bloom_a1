@@ -1,4 +1,6 @@
 import 'package:bloom_a1/models/user_table.dart';
+import 'package:bloom_a1/screens/login_screen.dart';
+import 'package:bloom_a1/screens/splash_screen.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -65,5 +67,6 @@ class AuthController extends GetxController {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
     currentUser.value = null;
+    Get.offAll(()=>SplashScreen());
   }
 }

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:bloom_a1/controller/auth_controller.dart';
 import 'package:bloom_a1/controller/plant_controller.dart';
 import 'package:bloom_a1/models/plant_table.dart';
 import 'package:flutter/material.dart';
@@ -68,7 +69,10 @@ class PlantDetailsScreen extends StatelessWidget {
               ListTile(
                 leading: const Icon(Icons.logout),
                 title: const Text("تسجيل خروج"),
-                onTap: () {},
+                onTap: () {
+                  AuthController auth=Get.find();
+                  auth.logout();
+                },
               ),
             ],
           ),
@@ -113,7 +117,8 @@ class PlantDetailsScreen extends StatelessWidget {
                   _buildPlantInfo("الوصف", plantInfo.description),
                   _buildPlantInfo("الضوء", plantInfo.light),
                   _buildPlantInfo("درجة الحرارة", "${plantInfo.temperature}°C"),
-                  _buildPlantInfo("السقاية", " في الشهر ${plantInfo.summer}"),
+                  _buildPlantInfo("السقاية في الصيف", " في الشهر ${plantInfo.summer}"),
+                  _buildPlantInfo("السقاية في الشتاء", " في الشهر ${plantInfo.winter}"),
                   _buildPlantInfo("التربة", plantInfo.soil),
                   _buildPlantInfo("التسميد", plantInfo.fertilization),
                   _buildPlantInfo("المزايا", plantInfo.benefits),
@@ -136,7 +141,7 @@ class PlantDetailsScreen extends StatelessWidget {
           Text(
             "$title:",
             style: const TextStyle(
-                fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
+                fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFFCDD4BA),),
           ),
           Text(
             content,

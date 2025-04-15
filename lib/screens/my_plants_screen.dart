@@ -30,7 +30,6 @@ class _MyPlantsScreenState extends State<MyPlantsScreen> {
     super.initState();
     _speech = stt.SpeechToText();
     _initializeSpeech();
-    plantController.loadPlants();
   }
 
   void _initializeSpeech() async {
@@ -95,21 +94,11 @@ class _MyPlantsScreenState extends State<MyPlantsScreen> {
   }
 
   void _navigateToWateringSchedule() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => WateringScheduleScreen(),
-      ),
-    );
+    Get.to(() => WateringScheduleScreen());
   }
 
   void _navigateToHomeScreen() {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => HomeScreen(),
-      ),
-    );
+    Get.offAll(() => HomeScreen());
   }
 
   void _showSnackbar(String message) {
@@ -125,6 +114,7 @@ class _MyPlantsScreenState extends State<MyPlantsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    plantController.loadPlants();
     return Scaffold(
       extendBodyBehindAppBar: true,
       body: Container(
@@ -211,7 +201,7 @@ class _MyPlantsScreenState extends State<MyPlantsScreen> {
                   child: ListView.builder(
                     itemCount: plantController.filteredPlants.length,
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 15, vertical: 10),
+                        horizontal: 15, vertical: 20),
                     itemBuilder: (context, index) {
                       return GestureDetector(
                         onTap: () => showPlantDetails(index),
@@ -223,7 +213,7 @@ class _MyPlantsScreenState extends State<MyPlantsScreen> {
                             borderRadius: BorderRadius.circular(20),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color.fromRGBO(0, 0, 0, 0.1),
+                                color: const Color(0xFFCDD4BA),
                                 blurRadius: 8,
                                 offset: const Offset(0, 2),
                               ),
@@ -313,7 +303,11 @@ class _MyPlantsScreenState extends State<MyPlantsScreen> {
                                                       BorderRadius.circular(12),
                                                 ),
                                                 child: Text(
-                                                  "كل ${plantController.filteredPlants[index].summer} أيام",
+                                                  plantController.currentSeason
+                                                              .value ==
+                                                          "الشتاء"
+                                                      ? "كل ${(30 / double.parse(plantController.filteredPlants[index].winter)).round()} ايام"
+                                                      : "كل ${(30 / double.parse(plantController.filteredPlants[index].summer)).round()} ايام",
                                                   style: const TextStyle(
                                                     fontSize: 10,
                                                     color: Colors.white,

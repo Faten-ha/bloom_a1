@@ -15,30 +15,33 @@ class PlantController extends GetxController {
   final dbHelper = DBHelper();
   //plant Details index
   RxInt plantDetailsIndex = 0.obs;
-
+  RxString currentSeason = "غير معروف".obs;
 
   /// Load all plants for a specific user
   Future<void> loadPlants() async {
     final authController = Get.find<AuthController>();
     final userId = authController.currentUser.value?.id;
+    determineCurrentSeason();
     isLoading.value = true;
     final list = await dbHelper.getPlantsByUser(userId!);
     plants.assignAll(list);
     filteredPlants.assignAll(list); // Initialize filtered list with all plants
     isLoading.value = false;
   }
+
   /// Filter plants by name
   void filterPlants(String query) {
     if (query.isEmpty) {
       filteredPlants.assignAll(plants); // Reset if search is empty
     } else {
       final filtered = plants
-          .where((plant) =>
-          plant.name.toLowerCase().contains(query.toLowerCase()))
+          .where(
+              (plant) => plant.name.toLowerCase().contains(query.toLowerCase()))
           .toList();
       filteredPlants.assignAll(filtered);
     }
   }
+
   /// Pick image and save it to local storage
   Future<String> saveImageToAppStorage(File image) async {
     final appDir = await getApplicationDocumentsDirectory();
@@ -52,7 +55,6 @@ class PlantController extends GetxController {
   Future<void> addPlant(PlantTable plant) async {
     final save = await dbHelper.insertPlant(plant);
     if (save > 0) {
-      await loadPlants();
       Get.snackbar("تم الحفظ", "تمت إضافة النبات بنجاح إلى نباتاتي",
           colorText: Colors.black,
           backgroundColor: Colors.green,
@@ -69,6 +71,15 @@ class PlantController extends GetxController {
   /// Delete a plant by ID
   Future<void> deletePlant(int plantId, int userId) async {
     await dbHelper.deletePlant(plantId);
-    await loadPlants();
+  }
+
+  void determineCurrentSeason() {
+    final month = DateTime.now().month;
+
+    if (month == 11 || month == 12 || month == 1 || month == 2) {
+      currentSeason.value = "الشتاء";
+    } else {
+      currentSeason.value = "الصيف";
+    }
   }
 }

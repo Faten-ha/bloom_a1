@@ -1,4 +1,9 @@
+import 'package:bloom_a1/controller/plant_controller.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import '../controller/auth_controller.dart';
+import '../controller/watering_schedule_controller.dart';
+import '../models/watering_schedule_table.dart';
 import 'home_screen.dart';
 
 class WateringScheduleScreen extends StatefulWidget {
@@ -9,8 +14,13 @@ class WateringScheduleScreen extends StatefulWidget {
 }
 
 class _WateringScheduleScreenState extends State<WateringScheduleScreen> {
+  final PlantController _plantController = Get.find();
+  final WateringScheduleController _sController =
+      Get.put(WateringScheduleController());
+
   int _selectedPlantIndex = 0;
-  final List<String> _plantNames = ["كالاتيا زيبريتا", "بوتوس الذهبي"];
+  List<String> _plantNames = [];
+
   Map<String, DateTime> lastWatered = {};
   Map<String, List<DateTime>> wateringSchedule = {};
 
@@ -22,131 +32,203 @@ class _WateringScheduleScreenState extends State<WateringScheduleScreen> {
     });
   }
 
-  void _generateWateringSchedule(String plant) {
+  Future<void> _generateWateringSchedule(String plant) async {
+    final plantSchedule = _plantController.plants[_selectedPlantIndex];
     DateTime startDate = lastWatered[plant] ?? DateTime.now();
     List<DateTime> schedule = [];
-    for (int i = 1; i <= 30; i += 3) {
+    int waterDay = 0;
+    //get number of watering based the current season
+    if (_plantController.currentSeason.value == "الشتاء") {
+      waterDay = (30 / double.parse(plantSchedule.winter)).round();
+    }
+    if (_plantController.currentSeason.value == "الصيف") {
+      waterDay = (30 / double.parse(plantSchedule.summer)).round();
+    }
+    for (int i = 1; i <= 30; i += waterDay) {
       schedule.add(startDate.add(Duration(days: i)));
     }
     wateringSchedule[plant] = schedule;
+    //update or insert to watering_schedule table
+    // delete all schedules of this plant and update the
+    if (_sController.wateringSchedules.isNotEmpty) {
+      await _sController.deleteSchedule(plantSchedule.id!);
+    }
+
+    for (int i = 0; i < schedule.length; i++) {
+      await _sController.addSchedule(WateringScheduleTable(
+        plantId: plantSchedule.id!,
+        frequency: waterDay.toString(),
+        day: schedule[i].day.toString(),
+      ));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFA9A9A9),
-              Color(0xFF577363),
-              Color(0xFF063D1D),
+    if (_plantController.plants.isEmpty) {
+      _plantController.loadPlants();
+    }
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Color(0xFFA9A9A9), // الرمادي الفاتح
+            Color(0xFF577363), // الأخضر الباهت
+            Color(0xFF063D1D), // الأخضر الغامق
+          ],
+          stops: [0.0, 0.5, 1.0],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+      ),
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          foregroundColor: Color(0xFF063D1D),
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Color(0xFF204D32)),
+            onPressed: () {
+              Get.offAll(() => HomeScreen());
+            },
+          ),
+          title: Center(
+            child: Text(
+              "جدول الري",
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF063D1D),
+              ),
+            ),
+          ),
+        ),
+        endDrawer: Drawer(
+          child: ListView(
+            padding: EdgeInsets.zero,
+            children: [
+              DrawerHeader(
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E3C1E),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: const [
+                    Icon(Icons.account_circle, size: 80, color: Colors.white),
+                    SizedBox(height: 10),
+                    Text("مرحبًا بك",
+                        style: TextStyle(color: Colors.white, fontSize: 18)),
+                  ],
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.share),
+                title: const Text("مشاركة رابط الحساب"),
+                onTap: () {},
+              ),
+              ListTile(
+                leading: const Icon(Icons.logout),
+                title: const Text("تسجيل خروج"),
+                onTap: () {
+                  AuthController auth = Get.find();
+                  auth.logout();
+                },
+              ),
             ],
           ),
         ),
-        child: Padding(
+        body: Padding(
           padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  IconButton(
-                    icon:
-                        const Icon(Icons.arrow_back, color: Color(0xFF204D32)),
-                    onPressed: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => const HomeScreen()),
-                      );
-                    },
-                  ),
-                  const Text(
-                    "جدول الري",
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF204D32),
+          child: Obx(() {
+            if (_plantController.isLoading.value) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (_plantController.plants.isEmpty) {
+              return const Center(child: Text("لا يوجد نباتات بعد"));
+            }
+            _plantNames = _plantController.plants.map((plant) {
+              return plant.name;
+            }).toList();
+            _sController.loadSchedules(
+                _plantController.plants[_selectedPlantIndex].id!);
+            return Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    reverse: true, // optional: to maintain RTL feel
+                    child: Row(
+                      textDirection: TextDirection.rtl,
+                      children: List.generate(_plantNames.length, (index) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 5),
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _selectedPlantIndex == index
+                                  ? const Color(0xFF204D32)
+                                  : const Color(0xFFDCE3C6),
+                              foregroundColor: _selectedPlantIndex == index
+                                  ? Colors.white
+                                  : Colors.black,
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 12, horizontal: 20),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(15),
+                              ),
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _selectedPlantIndex = index;
+                              });
+                            },
+                            child: Text(
+                              _plantNames[index],
+                              style: const TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        );
+                      }),
                     ),
                   ),
-                  const SizedBox(width: 48),
-                ],
-              ),
-              const SizedBox(height: 20),
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(_plantNames.length, (index) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 5),
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _selectedPlantIndex == index
-                              ? const Color(0xFF204D32) // استخدام اللون المطلوب
-                              : const Color(0xFFDCE3C6),
-                          foregroundColor: _selectedPlantIndex == index
-                              ? Colors.white
-                              : Colors.black,
-                          padding: const EdgeInsets.symmetric(
-                              vertical: 12, horizontal: 20),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(15),
-                          ),
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _selectedPlantIndex = index;
-                          });
-                        },
-                        child: Text(
-                          _plantNames[index],
-                          style: const TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    );
-                  }),
                 ),
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor:
-                      const Color(0xFF204D32), // استخدام اللون المطلوب
-                  foregroundColor: Colors.white,
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor:
+                        const Color(0xFF204D32), // استخدام اللون المطلوب
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 12, horizontal: 20),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                  ),
+                  onPressed: () async {
+                    DateTime? pickedDate = await showDatePicker(
+                      context: context,
+                      initialDate: DateTime.now(),
+                      firstDate: DateTime(2024, 1, 1),
+                      lastDate: DateTime(2025, 12, 31),
+                    );
+                    if (pickedDate != null) {
+                      _setLastWatered(pickedDate);
+                    }
+                  },
+                  child: const Text("تحديد آخر يوم ري"),
+                ),
+                const SizedBox(height: 20),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 0),
+                    child: _buildCalendar(),
                   ),
                 ),
-                onPressed: () async {
-                  DateTime? pickedDate = await showDatePicker(
-                    context: context,
-                    initialDate: DateTime.now(),
-                    firstDate: DateTime(2024, 1, 1),
-                    lastDate: DateTime(2025, 12, 31),
-                  );
-                  if (pickedDate != null) {
-                    _setLastWatered(pickedDate);
-                  }
-                },
-                child: const Text("تحديد آخر يوم ري"),
-              ),
-              const SizedBox(height: 20),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 0),
-                  child: _buildCalendar(),
-                ),
-              ),
-            ],
-          ),
+              ],
+            );
+          }),
         ),
       ),
     );
@@ -160,11 +242,10 @@ class _WateringScheduleScreenState extends State<WateringScheduleScreen> {
       "الثلاثاء",
       "الأربعاء",
       "الخميس",
-      "الجمعة"
+      "الجمعة",
     ];
-    List<int> daysInMonth = List.generate(31, (index) => index + 1);
-    String plant = _plantNames[_selectedPlantIndex];
-    List<DateTime>? schedule = wateringSchedule[plant];
+    List<int> daysInMonth = List.generate(30, (index) => index + 1);
+    String plantName = _plantNames[_selectedPlantIndex];
 
     return Column(
       children: [
@@ -188,41 +269,49 @@ class _WateringScheduleScreenState extends State<WateringScheduleScreen> {
         ),
         const SizedBox(height: 5),
         Expanded(
-          child: Directionality(
-            textDirection: TextDirection.rtl,
-            child: GridView.builder(
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 7,
-                crossAxisSpacing: 6,
-                mainAxisSpacing: 6,
-              ),
-              itemCount: daysInMonth.length,
-              itemBuilder: (context, index) {
-                bool isWateringDay =
-                    schedule?.any((date) => date.day == daysInMonth[index]) ??
-                        false;
-                return Container(
-                  decoration: BoxDecoration(
-                    color: isWateringDay
-                        ? const Color(0xFF204D32) // استخدام اللون المطلوب
-                        : const Color(0xFFDCE3C6),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Center(
-                    child: Text(
-                      daysInMonth[index].toString(),
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                        color: isWateringDay ? Colors.white : Colors.black,
+          child: Obx(() {
+            if (_sController.isLoading.value) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            final schedules = _sController.wateringSchedules;
+            return Directionality(
+              textDirection: TextDirection.rtl,
+              child: GridView.builder(
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 7,
+                  crossAxisSpacing: 6,
+                  mainAxisSpacing: 6,
+                ),
+                itemCount: daysInMonth.length,
+                itemBuilder: (context, index) {
+                  final day = daysInMonth[index];
+                  final isWateringDay =
+                      schedules.any((s) => int.tryParse(s.day) == day);
+
+                  return Container(
+                    decoration: BoxDecoration(
+                      color: isWateringDay
+                          ? const Color(0xFF204D32)
+                          : const Color(0xFFDCE3C6),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Center(
+                      child: Text(
+                        day.toString(),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          color: isWateringDay ? Colors.white : Colors.black,
+                        ),
                       ),
                     ),
-                  ),
-                );
-              },
-            ),
-          ),
+                  );
+                },
+              ),
+            );
+          }),
         ),
       ],
     );

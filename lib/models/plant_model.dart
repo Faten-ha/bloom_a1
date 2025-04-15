@@ -3,7 +3,8 @@ class Plant {
   final String description;
   final String light;
   final String temperature;
-  final String watering;
+  final String summer;
+  final String winter;
   final String soil;
   final String fertilization;
   final String benefits;
@@ -14,7 +15,8 @@ class Plant {
     required this.description,
     required this.light,
     required this.temperature,
-    required this.watering,
+    required this.summer,
+    required this.winter,
     required this.soil,
     required this.fertilization,
     required this.benefits,
@@ -27,7 +29,8 @@ class Plant {
       description: json['description'] ?? '',
       light: json['light'] ?? '',
       temperature: json['temperature'] ?? '',
-      watering: json['watering'] ?? '',
+      summer: json['summer'] ?? '',
+      winter: json['winter'] ?? '',
       soil: json['soil'] ?? '',
       fertilization: json['fertilization'] ?? '',
       benefits: json['benefits'] ?? '',
@@ -41,14 +44,17 @@ class Plant {
       'description': description,
       'light': light,
       'temperature': temperature,
-      'watering': watering,
+      'summer': summer,
+      'winter': winter,
       'soil': soil,
       'fertilization': fertilization,
       'benefits': benefits,
       'warning': warning,
     };
   }
+
   static Map<int, Plant> fromJsonMap(Map<String, dynamic> jsonMap) {
-    return jsonMap.map((key, value) => MapEntry(int.parse(key), Plant.fromJson(value)));
+    return jsonMap
+        .map((key, value) => MapEntry(int.parse(key), Plant.fromJson(value)));
   }
 }

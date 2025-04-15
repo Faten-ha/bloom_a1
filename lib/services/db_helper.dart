@@ -3,6 +3,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
 import '../models/user_table.dart';
+import '../models/watering_schedule_table.dart';
 
 class DBHelper {
   static final DBHelper _instance = DBHelper._internal();
@@ -54,6 +55,14 @@ class DBHelper {
         imageUrl TEXT
       )
     ''');
+    await db.execute('''
+      CREATE TABLE watering_schedule (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      plantId INTEGER NOT NULL,
+      frequency TEXT NOT NULL,
+      day TEXT NOT NULL
+    )
+''');
   }
 
   // User CRUD
@@ -101,5 +110,46 @@ class DBHelper {
   Future<int> deletePlant(int id) async {
     final db = await database;
     return await db.delete('plants', where: 'id = ?', whereArgs: [id]);
+  }
+
+  //wateringSchedule CURD
+  Future<int> insertWateringSchedule(
+      WateringScheduleTable wateringSchedule) async {
+    final db = await database;
+    return await db.insert('watering_schedule', wateringSchedule.toMap());
+  }
+
+  Future<List<WateringScheduleTable>> getWateringScheduleByPlant(
+      int plantId) async {
+    final db = await database;
+    final maps = await db.query(
+      'watering_schedule',
+      where: 'plantId = ?',
+      whereArgs: [plantId],
+    );
+    return maps.map((map) => WateringScheduleTable.fromMap(map)).toList();
+  }
+
+  Future<int> deleteWateringSchedule(int id) async {
+    final db = await database;
+    return await db
+        .delete('watering_schedule', where: 'id = ?', whereArgs: [id]);
+  }
+  //delete plant's Watering Schedule
+  Future<int> deleteSchedule(int plantId) async {
+    final db = await database;
+    return await db
+        .delete('watering_schedule', where: 'plantId = ?', whereArgs: [plantId]);
+  }
+
+  //update WateringSchedule
+  Future<int> updateWateringSchedule(WateringScheduleTable schedule) async {
+    final db = await database;
+    return await db.update(
+      'watering_schedule',
+      schedule.toMap(),
+      where: 'id = ?',
+      whereArgs: [schedule.id],
+    );
   }
 }
