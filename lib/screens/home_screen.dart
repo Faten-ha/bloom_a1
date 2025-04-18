@@ -20,19 +20,26 @@ class _HomeScreenState extends State<HomeScreen> {
   late stt.SpeechToText _speechToText;
   bool _isListening = false;
   String _recognizedText = "";
-  String location = "جاري تحديد الموقع...";
+  String cityName = "جاري التحديد...";
   String temperature = "--";
-  String weatherCondition = "--";
+  String weatherDescription = "--";
+  String humidity = "--";
+  String windSpeed = "--";
   bool _isLoading = false;
+  String weatherIcon = "";
 
-  final String apiKey = 'b01dc45cfcba6f0c02852a856dd97f29';
-  final String baseUrl = 'https://api.openweathermap.org/data/2.5/weather';
+  // مفتاح API للطقس
+  final String apiKey = "5636a30b4ad0c22d1c43b749606f1f4d";
 
   @override
   void initState() {
     super.initState();
     _speechToText = stt.SpeechToText();
     _initializeSpeechToText();
+    // عرض مربع حوار طلب الموقع عند فتح الصفحة (اختياري)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showLocationDialog();
+    });
   }
 
   void _initializeSpeechToText() async {
@@ -99,11 +106,12 @@ class _HomeScreenState extends State<HomeScreen> {
         command.contains("شات بوت")) {
       _navigateToChatBotScreen();
       commandRecognized = true;
-    } else if (command.contains("طقس") ||
-        command.contains("الطقس") ||
-        command.contains("حالة الجو") ||
-        command.contains("الحرارة")) {
-      _showWeatherDialog();
+    } else if (command.contains("موقع") ||
+        command.contains("الموقع") ||
+        command.contains("مكان") ||
+        command.contains("أين") ||
+        command.contains("طقس")) {
+      _showLocationDialog();
       commandRecognized = true;
     }
 
@@ -187,17 +195,18 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _showWeatherDialog() {
+  void _showLocationDialog() {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text("هل ترغب في مشاركة الموقع وحالة الطقس؟"),
+          title: Text("هل ترغب في مشاركة موقعك الحالي؟"),
+          content: Text("سنستخدم موقعك لعرض معلومات الطقس لمدينتك"),
           actions: [
             TextButton(
               onPressed: () async {
                 Navigator.pop(context);
-                await _fetchWeatherData();
+                await _fetchLocationData();
               },
               child: Text("نعم"),
             ),
@@ -213,23 +222,27 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Future<void> _fetchWeatherData() async {
+  Future<void> _fetchLocationData() async {
     setState(() => _isLoading = true);
     try {
       Position? position = await _determinePosition();
       if (position != null) {
-        setState(() {
-          location =
-              "خط العرض: ${position.latitude}, خط الطول: ${position.longitude}";
-        });
-        await _getWeatherData(position.latitude, position.longitude);
+        debugPrint(
+            "موقع تم الحصول عليه: ${position.latitude}, ${position.longitude}");
+        await _getCityName(position.latitude, position.longitude);
+        await _fetchWeatherDataByCoordinates(
+            position.latitude, position.longitude);
       }
     } catch (e) {
       setState(() {
-        location = "خطأ في تحديد الموقع";
+        cityName = "خطأ في تحديد الموقع";
+        temperature = "غير متاح";
+        weatherDescription = "غير متاح";
+        humidity = "غير متاح";
+        windSpeed = "غير متاح";
       });
       _showSnackbar("خطأ في تحديد الموقع: ${e.toString()}");
-      debugPrint("Error in _fetchWeatherData: $e");
+      debugPrint("Error in _fetchLocationData: $e");
     } finally {
       setState(() => _isLoading = false);
     }
@@ -239,12 +252,14 @@ class _HomeScreenState extends State<HomeScreen> {
     bool serviceEnabled;
     LocationPermission permission;
 
+    // التحقق مما إذا كانت خدمات الموقع ممكنة
     serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
       _showSnackbar("خدمة الموقع غير مفعلة. يرجى تفعيل GPS من الإعدادات.");
       return null;
     }
 
+    // التحقق من إذن الموقع وطلبه إذا لم يكن متاحًا
     permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
@@ -259,65 +274,158 @@ class _HomeScreenState extends State<HomeScreen> {
       return null;
     }
 
-    return await Geolocator.getCurrentPosition();
+    // الحصول على الموقع الحالي بدقة عالية
+    return await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.high,
+      timeLimit: Duration(seconds: 15),
+    );
   }
 
-  Future<void> _getWeatherData(double lat, double lon) async {
+  Future<void> _getCityName(double lat, double lon) async {
     try {
-      final response = await http.get(
-        Uri.parse(
-            '$baseUrl?lat=$lat&lon=$lon&appid=$apiKey&units=metric&lang=ar'),
-      );
+      debugPrint("جاري البحث عن المدينة بالإحداثيات: $lat, $lon");
+      final response = await http.get(Uri.parse(
+          'https://nominatim.openstreetmap.org/reverse?format=json&lat=$lat&lon=$lon&zoom=10&addressdetails=1&accept-language=ar'));
 
       if (response.statusCode == 200) {
-        var data = json.decode(response.body);
+        final data = json.decode(response.body);
+        debugPrint("بيانات الاستجابة: $data");
+
+        // تحسين استخراج اسم المدينة
+        String? city;
+        if (data['address'] != null) {
+          // محاولة الحصول على اسم أكثر تحديدًا للموقع
+          city = data['address']['city'] ??
+              data['address']['town'] ??
+              data['address']['village'] ??
+              data['address']['suburb'] ??
+              data['address']['neighbourhood'] ??
+              data['address']['county'] ??
+              data['address']['state'] ??
+              data['address']['country'] ??
+              "موقع غير معروف";
+        }
+
         setState(() {
-          temperature = "${data['main']['temp']}°C";
-          weatherCondition = data['weather'][0]['description'];
+          cityName = city ?? "موقع غير معروف";
         });
 
-        _showWeatherDataDialog();
+        debugPrint("تم تحديد المدينة: $cityName");
       } else {
-        debugPrint('خطأ في الاتصال بـ API: ${response.statusCode}');
-        setState(() {
-          temperature = "--";
-          weatherCondition = "خطأ في جلب البيانات";
-        });
-        _showSnackbar("فشل في جلب بيانات الطقس: ${response.statusCode}");
+        debugPrint("خطأ في استجابة API: ${response.statusCode}");
+        setState(() => cityName = "تعذر تحديد المدينة");
       }
     } catch (e) {
-      debugPrint('حدث خطأ في _getWeatherData: $e');
-      setState(() {
-        temperature = "--";
-        weatherCondition = "خطأ في جلب البيانات";
-      });
+      setState(() => cityName = "تعذر تحديد المدينة");
+      debugPrint("Error getting city name: $e");
+    }
+  }
+
+  // استخدام الإحداثيات مباشرة للحصول على معلومات الطقس (أكثر دقة)
+  Future<void> _fetchWeatherDataByCoordinates(double lat, double lon) async {
+    try {
+      debugPrint("جاري جلب بيانات الطقس للإحداثيات: $lat, $lon");
+      final response = await http.get(Uri.parse(
+          'https://api.openweathermap.org/data/2.5/weather?lat=$lat&lon=$lon&appid=$apiKey&units=metric&lang=ar'));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        debugPrint("بيانات الطقس: $data");
+        setState(() {
+          temperature = "${data['main']['temp']?.toStringAsFixed(1) ?? '--'}°C";
+          weatherDescription = data['weather'][0]['description'] ?? "--";
+          humidity = "${data['main']['humidity']?.toString() ?? '--'}%";
+          windSpeed = "${(data['wind']['speed'] ?? 0).toStringAsFixed(1)} م/ث";
+          weatherIcon = data['weather'][0]['icon'] ?? "";
+        });
+        _showWeatherInfoDialog();
+      } else {
+        debugPrint("خطأ في استجابة API الطقس: ${response.statusCode}");
+        _showSnackbar("تعذر جلب بيانات الطقس");
+      }
+    } catch (e) {
+      debugPrint("Error fetching weather: $e");
       _showSnackbar("حدث خطأ أثناء جلب بيانات الطقس");
     }
   }
 
-  void _showWeatherDataDialog() {
+  Future<void> _fetchWeatherData(String city) async {
+    try {
+      debugPrint("جاري جلب بيانات الطقس للمدينة: $city");
+      final response = await http.get(Uri.parse(
+          'https://api.openweathermap.org/data/2.5/weather?q=$city&appid=$apiKey&units=metric&lang=ar'));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        debugPrint("بيانات الطقس: $data");
+        setState(() {
+          temperature = "${data['main']['temp']?.toStringAsFixed(1) ?? '--'}°C";
+          weatherDescription = data['weather'][0]['description'] ?? "--";
+          humidity = "${data['main']['humidity']?.toString() ?? '--'}%";
+          windSpeed = "${(data['wind']['speed'] ?? 0).toStringAsFixed(1)} م/ث";
+          weatherIcon = data['weather'][0]['icon'] ?? "";
+        });
+        _showWeatherInfoDialog();
+      } else {
+        debugPrint("خطأ في استجابة API الطقس: ${response.statusCode}");
+        _showSnackbar("تعذر جلب بيانات الطقس");
+      }
+    } catch (e) {
+      debugPrint("Error fetching weather: $e");
+      _showSnackbar("حدث خطأ أثناء جلب بيانات الطقس");
+    }
+  }
+
+  void _showWeatherInfoDialog() {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text("معلومات الطقس"),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text("الموقع: $location"),
-              SizedBox(height: 10),
-              Text("درجة الحرارة: $temperature"),
-              SizedBox(height: 10),
-              Text("حالة الطقس: $weatherCondition"),
-            ],
+          title: Text("معلومات الطقس في $cityName"),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (weatherIcon.isNotEmpty)
+                  Center(
+                    child: Image.network(
+                      'https://openweathermap.org/img/wn/$weatherIcon@2x.png',
+                      width: 100,
+                      height: 100,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Icon(Icons.cloud, size: 80);
+                      },
+                    ),
+                  ),
+                _buildWeatherInfoRow("درجة الحرارة", temperature),
+                _buildWeatherInfoRow("حالة الطقس", weatherDescription),
+                _buildWeatherInfoRow("الرطوبة", humidity),
+                _buildWeatherInfoRow("سرعة الرياح", windSpeed),
+                SizedBox(height: 10),
+                Text(
+                  "آخر تحديث: ${DateTime.now().toString().substring(0, 16)}",
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+                SizedBox(height: 10),
+                Text(
+                  "الإحداثيات: يتم عرض معلومات الطقس لموقعك الدقيق",
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
-              onPressed: () {
+              onPressed: () => Navigator.pop(context),
+              child: Text("إغلاق"),
+            ),
+            TextButton(
+              onPressed: () async {
                 Navigator.pop(context);
+                await _fetchLocationData();
               },
-              child: Text("موافق"),
+              child: Text("تحديث"),
             ),
           ],
         );
@@ -325,133 +433,174 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildWeatherInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: TextStyle(fontWeight: FontWeight.bold)),
+          Text(value),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              Color(0xFFA9A9A9),
-              Color(0xFF577363),
-              Color(0xFF063D1D),
-            ],
-            stops: [0.0, 0.5, 1.0],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
-        child: Column(
-          children: [
-            AppBar(
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              //no back icon
-              leading: const SizedBox(),
-              title: const Text(
-                "الصفحة الرئيسية",
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF063D1D),
+      body: _isLoading
+          ? Center(child: CircularProgressIndicator())
+          : Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Color(0xFFA9A9A9),
+                    Color(0xFF577363),
+                    Color(0xFF063D1D),
+                  ],
+                  stops: [0.0, 0.5, 1.0],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
                 ),
               ),
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.menu, color: Color(0xFF063D1D)),
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (BuildContext context) {
-                        return Dialog(
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Container(
-                            padding: const EdgeInsets.all(20),
-                            color: const Color(0xFF577363),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                GestureDetector(
-                                  onTap: () {
-                                    Navigator.pushReplacement(
-                                      context,
-                                      MaterialPageRoute(
-                                          builder: (context) =>
-                                              const HomeScreen()),
-                                    );
-                                  },
-                                  child: Container(
-                                    width: 150,
-                                    height: 50,
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF577363),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Center(
-                                      child: Text(
-                                        'تسجيل خروج',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
+              child: Column(
+                children: [
+                  AppBar(
+                    backgroundColor: Colors.transparent,
+                    elevation: 0,
+                    leading: const SizedBox(),
+                    title: const Text(
+                      "الصفحة الرئيسية",
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF063D1D),
+                      ),
+                    ),
+                    actions: [
+                      IconButton(
+                        icon: const Icon(Icons.menu, color: Color(0xFF063D1D)),
+                        onPressed: () {
+                          showDialog(
+                            context: context,
+                            builder: (BuildContext context) {
+                              return Dialog(
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Container(
+                                  padding: const EdgeInsets.all(20),
+                                  color: const Color(0xFF577363),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      GestureDetector(
+                                        onTap: () {
+                                          Navigator.pushReplacement(
+                                            context,
+                                            MaterialPageRoute(
+                                                builder: (context) =>
+                                                    const HomeScreen()),
+                                          );
+                                        },
+                                        child: Container(
+                                          width: 150,
+                                          height: 50,
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF577363),
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                          ),
+                                          child: Center(
+                                            child: Text(
+                                              'تسجيل خروج',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
                                         ),
                                       ),
-                                    ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ],
+                    centerTitle: true,
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // بطاقة الطقس المصغرة
+                        GestureDetector(
+                          onTap: () {
+                            _showLocationDialog();
+                          },
+                          child: Container(
+                            padding: EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Color.fromRGBO(255, 255, 255, 0.2),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.cloud, color: Colors.white),
+                                SizedBox(width: 5),
+                                Text(
+                                  temperature != "--" ? temperature : "الطقس",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                        );
-                      },
-                    );
-                  },
-                ),
-              ],
-              centerTitle: true,
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: const [
-                  Text(
-                    "مرحبًا",
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF063D1D),
+                        ),
+                        Text(
+                          "مرحبًا",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF063D1D),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
+                  const SizedBox(height: 20),
+                  _buildMainButton("اكتشف نبتتك", "assets/images/plant1.png"),
+                  const SizedBox(height: 15),
+                  _buildMainButton("ابحث عن نبتتك", "assets/images/plant2.png"),
+                  const SizedBox(height: 20),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20),
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        "أدوات العناية :",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  _buildCareTools(),
                 ],
               ),
             ),
-            const SizedBox(height: 20),
-            _buildMainButton("اكتشف نبتتك", "assets/images/plant1.png"),
-            const SizedBox(height: 15),
-            _buildMainButton("ابحث عن نبتتك", "assets/images/plant2.png"),
-            const SizedBox(height: 20),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20),
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: Text(
-                  "أدوات العناية :",
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            _buildCareTools(),
-          ],
-        ),
-      ),
       bottomNavigationBar: _buildBottomNavBar(),
       floatingActionButton: FloatingActionButton(
         onPressed: _startListening,
@@ -522,7 +671,7 @@ class _HomeScreenState extends State<HomeScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           _buildToolButton("جدول الري", Icons.water_drop),
-          _buildToolButton("الموقع وحالة الطقس", Icons.wb_sunny),
+          _buildToolButton("معلومات الطقس", Icons.cloud),
         ],
       ),
     );
@@ -536,15 +685,15 @@ class _HomeScreenState extends State<HomeScreen> {
             context,
             MaterialPageRoute(builder: (context) => WateringScheduleScreen()),
           );
-        } else if (text == "الموقع وحالة الطقس") {
-          _showWeatherDialog();
+        } else if (text == "معلومات الطقس") {
+          _showLocationDialog();
         }
       },
       child: Container(
         width: 150,
         height: 80,
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.2),
+          color: const Color.fromRGBO(255, 255, 255, 0.2),
           borderRadius: BorderRadius.circular(15),
         ),
         child: Column(
@@ -603,6 +752,21 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  // للحصول على أيقونة الطقس
+  Widget _getWeatherIcon() {
+    if (weatherIcon.isEmpty) {
+      return SizedBox();
+    }
+    return Image.network(
+      'https://openweathermap.org/img/wn/$weatherIcon@2x.png',
+      width: 100,
+      height: 100,
+      errorBuilder: (context, error, stackTrace) {
+        return Icon(Icons.cloud, size: 80);
+      },
     );
   }
 }
