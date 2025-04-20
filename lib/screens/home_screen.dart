@@ -7,6 +7,7 @@ import 'chatbot_screen.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -27,8 +28,8 @@ class _HomeScreenState extends State<HomeScreen> {
   String windSpeed = "--";
   bool _isLoading = false;
   String weatherIcon = "";
+  bool _locationPermissionRequested = false;
 
-  // مفتاح API للطقس
   final String apiKey = "5636a30b4ad0c22d1c43b749606f1f4d";
 
   @override
@@ -36,10 +37,26 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _speechToText = stt.SpeechToText();
     _initializeSpeechToText();
-    // عرض مربع حوار طلب الموقع عند فتح الصفحة (اختياري)
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _showLocationDialog();
+    _loadLocationPermissionStatus();
+  }
+
+  Future<void> _loadLocationPermissionStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _locationPermissionRequested =
+          prefs.getBool('locationPermissionRequested') ?? false;
     });
+
+    if (!_locationPermissionRequested) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showLocationDialog();
+      });
+    }
+  }
+
+  Future<void> _saveLocationPermissionStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('locationPermissionRequested', true);
   }
 
   void _initializeSpeechToText() async {
@@ -196,6 +213,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showLocationDialog() {
+    if (_locationPermissionRequested) {
+      _fetchLocationData();
+      return;
+    }
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -206,6 +228,10 @@ class _HomeScreenState extends State<HomeScreen> {
             TextButton(
               onPressed: () async {
                 Navigator.pop(context);
+                await _saveLocationPermissionStatus();
+                setState(() {
+                  _locationPermissionRequested = true;
+                });
                 await _fetchLocationData();
               },
               child: Text("نعم"),
@@ -213,6 +239,10 @@ class _HomeScreenState extends State<HomeScreen> {
             TextButton(
               onPressed: () {
                 Navigator.pop(context);
+                _saveLocationPermissionStatus();
+                setState(() {
+                  _locationPermissionRequested = true;
+                });
               },
               child: Text("لا"),
             ),
@@ -252,14 +282,12 @@ class _HomeScreenState extends State<HomeScreen> {
     bool serviceEnabled;
     LocationPermission permission;
 
-    // التحقق مما إذا كانت خدمات الموقع ممكنة
     serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
       _showSnackbar("خدمة الموقع غير مفعلة. يرجى تفعيل GPS من الإعدادات.");
       return null;
     }
 
-    // التحقق من إذن الموقع وطلبه إذا لم يكن متاحًا
     permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
@@ -274,7 +302,6 @@ class _HomeScreenState extends State<HomeScreen> {
       return null;
     }
 
-    // الحصول على الموقع الحالي بدقة عالية
     return await Geolocator.getCurrentPosition(
       desiredAccuracy: LocationAccuracy.high,
       timeLimit: Duration(seconds: 15),
@@ -291,10 +318,8 @@ class _HomeScreenState extends State<HomeScreen> {
         final data = json.decode(response.body);
         debugPrint("بيانات الاستجابة: $data");
 
-        // تحسين استخراج اسم المدينة
         String? city;
         if (data['address'] != null) {
-          // محاولة الحصول على اسم أكثر تحديدًا للموقع
           city = data['address']['city'] ??
               data['address']['town'] ??
               data['address']['village'] ??
@@ -321,7 +346,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // استخدام الإحداثيات مباشرة للحصول على معلومات الطقس (أكثر دقة)
   Future<void> _fetchWeatherDataByCoordinates(double lat, double lon) async {
     try {
       debugPrint("جاري جلب بيانات الطقس للإحداثيات: $lat, $lon");
@@ -540,7 +564,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        // بطاقة الطقس المصغرة
                         GestureDetector(
                           onTap: () {
                             _showLocationDialog();
@@ -755,7 +778,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // للحصول على أيقونة الطقس
   Widget _getWeatherIcon() {
     if (weatherIcon.isEmpty) {
       return SizedBox();
