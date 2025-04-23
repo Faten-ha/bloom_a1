@@ -1,4 +1,5 @@
 import 'package:bloom_a1/controller/plant_controller.dart';
+import 'package:bloom_a1/multi_use_classes.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controller/auth_controller.dart';
@@ -16,13 +17,21 @@ class WateringScheduleScreen extends StatefulWidget {
 class _WateringScheduleScreenState extends State<WateringScheduleScreen> {
   final PlantController _plantController = Get.find();
   final WateringScheduleController _sController =
-      Get.put(WateringScheduleController());
+  Get.put(WateringScheduleController());
 
   int _selectedPlantIndex = 0;
   List<String> _plantNames = [];
 
   Map<String, DateTime> lastWatered = {};
   Map<String, List<DateTime>> wateringSchedule = {};
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize TTS and Notification services
+    MultiUseClasses.ttsServices.init();
+    MultiUseClasses.notificationServices.init();
+  }
 
   void _setLastWatered(DateTime date) {
     String plant = _plantNames[_selectedPlantIndex];
@@ -37,6 +46,7 @@ class _WateringScheduleScreenState extends State<WateringScheduleScreen> {
     DateTime startDate = lastWatered[plant] ?? DateTime.now();
     List<DateTime> schedule = [];
     int waterDay = 0;
+
     //get number of watering based the current season
     if (_plantController.currentSeason.value == "الشتاء") {
       waterDay = (30 / double.parse(plantSchedule.winter)).round();
@@ -44,12 +54,13 @@ class _WateringScheduleScreenState extends State<WateringScheduleScreen> {
     if (_plantController.currentSeason.value == "الصيف") {
       waterDay = (30 / double.parse(plantSchedule.summer)).round();
     }
+
     for (int i = 1; i <= 30; i += waterDay) {
       schedule.add(startDate.add(Duration(days: i)));
     }
     wateringSchedule[plant] = schedule;
+
     //update or insert to watering_schedule table
-    // delete all schedules of this plant and update the
     if (_sController.wateringSchedules.isNotEmpty) {
       await _sController.deleteSchedule(plantSchedule.id!);
     }
@@ -60,7 +71,27 @@ class _WateringScheduleScreenState extends State<WateringScheduleScreen> {
         frequency: waterDay.toString(),
         day: schedule[i].day.toString(),
       ));
+
+      // Schedule notification for each watering day
+      await _scheduleWateringNotification(
+        plantName: plant,
+        date: schedule[i],
+      );
     }
+  }
+
+  Future<void> _scheduleWateringNotification({
+    required String plantName,
+    required DateTime date,
+  }) async {
+    final notificationId = date.hashCode; // Unique ID based on date
+
+    await MultiUseClasses.notificationServices.scheduleNotification(
+      id: notificationId,
+      title: "موعد ري النبات",
+      body: "حان وقت ري نبات $plantName اليوم",
+      scheduledTime: date, // Test after 10 seconds
+    );
   }
 
   @override
@@ -198,7 +229,7 @@ class _WateringScheduleScreenState extends State<WateringScheduleScreen> {
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor:
-                        const Color(0xFF204D32), // استخدام اللون المطلوب
+                    const Color(0xFF204D32), // استخدام اللون المطلوب
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(
                         vertical: 12, horizontal: 20),
@@ -288,7 +319,7 @@ class _WateringScheduleScreenState extends State<WateringScheduleScreen> {
                 itemBuilder: (context, index) {
                   final day = daysInMonth[index];
                   final isWateringDay =
-                      schedules.any((s) => int.tryParse(s.day) == day);
+                  schedules.any((s) => int.tryParse(s.day) == day);
 
                   return Container(
                     decoration: BoxDecoration(
