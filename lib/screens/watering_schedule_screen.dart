@@ -90,7 +90,7 @@ class _WateringScheduleScreenState extends State<WateringScheduleScreen> {
       id: notificationId,
       title: "موعد ري النبات",
       body: "حان وقت ري نبات $plantName اليوم",
-      scheduledTime: date, // Test after 10 seconds
+      scheduledTime:date,
     );
   }
 
