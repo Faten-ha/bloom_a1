@@ -1,8 +1,13 @@
+import 'dart:io';
+import 'package:chat_bubbles/bubbles/bubble_normal.dart';
+import 'package:dash_chat_2/dash_chat_2.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'package:flutter_gemini/flutter_gemini.dart';
+import 'const.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
-import 'home_screen.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter_tts/flutter_tts.dart';
+//import 'package:bloom_a1/screens/Voice_Chat.dart';
 
 class ChatBotScreen extends StatefulWidget {
   const ChatBotScreen({super.key});
@@ -12,231 +17,375 @@ class ChatBotScreen extends StatefulWidget {
 }
 
 class _ChatBotScreenState extends State<ChatBotScreen> {
-  final List<String> messages = [];
-  final TextEditingController _controller = TextEditingController();
-  late stt.SpeechToText _speech;
-  bool _isListening = false;
-  String _recognizedText = '';
+final Gemini gemini = Gemini.instance;
+  FlutterTts flutterTts = FlutterTts(); 
+  List<ChatMessage> messages = []; 
 
+  final ScrollController scrollController = ScrollController();
+  final TextEditingController controller = TextEditingController();
+
+  late stt.SpeechToText speechToText;
+  bool _isListening = false; 
+  bool _isGenerating = false; 
+  bool isTyping = false;
+  String _text = ''; 
+
+  ChatUser currentUser = ChatUser(id: "0", firstName: "User");// المستخدم  اللي يتفاعل مع الشات 
+  ChatUser geminiUser = ChatUser(id: "1", firstName: "Gemini");// الشات 
+
+  // تهيئة البيانات
   @override
   void initState() {
     super.initState();
-    _speech = stt.SpeechToText();
-    _initializeSpeech();
-  }
+    speechToText = stt.SpeechToText();
+    _requestPermission();//صلاحيات الميكروفون
+    _initSpeech();
 
-  void _initializeSpeech() async {
-    bool available = await _speech.initialize();
-    if (!available) {
-      _showSnackbar("التعرف على الكلام غير متاح!");
-    }
-  }
+    flutterTts.setLanguage("ar-SA");
+    flutterTts.setPitch(1.0); // حدة الصوت
+    flutterTts.setSpeechRate(0.5); // سرعة النطق
+    flutterTts.setEngine("com.google.android.tts");
 
-  void _startListening() async {
-    if (!_isListening) {
-      setState(() => _isListening = true);
-      _showSnackbar("جاري الاستماع...");
-      _speech.listen(
-        localeId: "ar_SA",
-        onResult: (result) {
-          setState(() => _recognizedText = result.recognizedWords);
-          if (result.finalResult) {
-            _handleVoiceCommand(_recognizedText);
-          }
-        },
-        listenFor: const Duration(seconds: 10),
-        pauseFor: const Duration(seconds: 3),
-      );
-    }
-  }
-
-  void _handleVoiceCommand(String command) {
-    debugPrint("Recognized command: $command");
-    command = command.trim().toLowerCase();
-    bool commandRecognized = false;
-
-    if (command.contains("العودة") ||
-        command.contains("الرئيسية") ||
-        command.contains("ارجع") ||
-        command.contains("رجوع") ||
-        command.contains("الصفحة الرئيسية") ||
-        command.contains("رجع")) {
-      _navigateToHomeScreen();
-      commandRecognized = true;
-    }
-
-    if (!commandRecognized) {
-      _showSnackbar("لم يتم التعرف على الأمر!");
-    }
-
-    _stopListening();
-  }
-
-  void _stopListening() {
-    if (_isListening) {
-      _speech.stop();
-      setState(() => _isListening = false);
-    }
-  }
-
-  void _navigateToHomeScreen() {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => HomeScreen(),
-      ),
-    );
-  }
-
-  void _showSnackbar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
-  }
-
-  Future<void> _sendMessage(String message) async {
-    setState(() {
-      messages.add("أنت: $message");
+    flutterTts.setCompletionHandler(() {
+      setState(() {
+        _isGenerating = false; 
+      });
     });
-
-    final response = await http.post(
-      Uri.parse('http://127.0.0.1:5000/chat'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'message': message}),
-    );
-
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      setState(() {
-        messages.add("المساعد: ${data['response']}");
-      });
-    } else {
-      setState(() {
-        messages.add("المساعد: حدث خطأ أثناء الاتصال بالخادم.");
-      });
-    }
-
-    _controller.clear();
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      // بدون AppBar
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              Color(0xFFA9A9A9),
-              Color(0xFF577363),
-              Color(0xFF063D1D),
-            ],
-            stops: [0.0, 0.5, 1.0],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
-        child: Column(
-          children: [
-            // إضافة padding إضافي في الجزء العلوي
-            Padding(
-              padding:
-                  const EdgeInsets.only(top: 30), // خفض السهم والكلمة قليلًا
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment
-                    .spaceBetween, // السهم على اليسار والكلمة في المنتصف
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back,
-                        color: Color(0xFF063D1D)), // لون السهم
-                    onPressed:
-                        _navigateToHomeScreen, // العودة إلى الشاشة الرئيسية
-                  ),
-                  const Text(
-                    "مساعدة", // كلمة "مساعدة"
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF063D1D), // لون الكلمة
-                    ),
-                  ),
-                  const SizedBox(
-                      width: 48), // مساحة فارغة على اليمين لتوازن التصميم
-                ],
-              ),
-            ),
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.all(10),
-                itemCount: messages.length,
-                itemBuilder: (context, index) {
-                  return Align(
-                    alignment: messages[index].startsWith("أنت")
-                        ? Alignment.centerRight
-                        : Alignment.centerLeft,
-                    child: Container(
-                      margin: const EdgeInsets.symmetric(vertical: 5),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: messages[index].startsWith("أنت")
-                            ? Colors.white70
-                            : Colors.green.shade200,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        messages[index],
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: messages[index].startsWith("أنت")
-                              ? Colors.black87
-                              : Colors.white,
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(10),
-              child: Row(
-                children: [
-                  // زر الصوت
-                  IconButton(
-                    icon: const Icon(Icons.mic, color: Colors.green),
-                    onPressed: _startListening, // بدء الاستماع للأوامر الصوتية
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: TextField(
-                      controller: _controller,
-                      decoration: InputDecoration(
-                        hintText: "اكتب رسالتك...",
-                        filled: true,
-                        fillColor: Colors.white,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(20),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  // زر الإرسال
-                  IconButton(
-                    icon: const Icon(Icons.send, color: Colors.green),
-                    onPressed: () {
-                      if (_controller.text.isNotEmpty) {
-                        _sendMessage(_controller.text);
-                      }
-                    },
-                  ),
-                ],
-              ),
-            ),
+  void dispose() {
+    flutterTts.stop();//// إيقاف تحويل النص إلى صوت
+    controller.dispose();
+    super.dispose();
+  }
+
+  // طلب صلاحيات الميكروفون
+  Future<void> _requestPermission() async {
+    if (Platform.isAndroid) {
+      var status = await Permission.microphone.status;
+      if (!status.isGranted) {
+        await Permission.microphone.request();
+      }
+    }
+  }
+
+  Future<void> _initSpeech() async {
+    bool available = await speechToText.initialize(
+      onStatus: (val) => print('Speech Status: $val'),
+      onError: (val) => print('Speech Error: $val'),
+    );
+print('التعرف على الصوت متاح: $available');
+  }
+
+  // Gemini إرسال رسالة والتفاعل مع 
+  void _sendMessage(ChatMessage chatMessage) {
+    setState(() {
+      
+      messages = [chatMessage, ...messages];
+    });
+    try {
+      String question = chatMessage.text;
+      final String fullPrompt = "${getBotanyPrompt(question)}\n\n$question";
+
+      gemini
+          .streamGenerateContent(
+        fullPrompt,
+        modelName: "models/gemini-1.5-flash",
+      )
+          .listen((event) async {
+        ChatMessage? lastMessage = messages.firstOrNull;
+        String response = event.content?.parts?.fold(
+                "", (previous, current) => "$previous ${current.text}") ?? "";
+        if (lastMessage != null && lastMessage.user == geminiUser) {
+          lastMessage = messages.removeAt(0);
+          lastMessage.text += response;
+          setState(() {
+            messages = [lastMessage!, ...messages];
+          });
+        } else {
+          ChatMessage message = ChatMessage(
+            user: geminiUser,
+            createdAt: DateTime.now(),
+            text: response,
+          );
+          setState(() {
+            messages = [message, ...messages];
+          });
+        }
+      });
+    } catch (e) {
+      print(e);
+    }
+  }
+
+  void _listen() async {
+    if (!_isListening) {
+      bool available = await speechToText.initialize(
+        onStatus: (status) => print('Status: $status'),
+        onError: (error) => print('Error: $error'),
+      );
+      if (available) {
+        print('البدء في الأستماع...');
+        setState(() => _isListening = true);
+        speechToText.listen(
+          onResult: (result) {
+            setState(() {
+              _text = result.recognizedWords;
+            });
+           print('تم التعرف على الكلام: $_text');
+            controller.text = _text;
+            setState(() => _isListening = false);
+          },
+        );
+      } else {
+           print('التعرف على الصوت غير متاح');
+      }
+    } else {
+      speechToText.stop();
+      setState(() => _isListening = false);
+    }
+  }
+//قراءة الرسالة بصوت
+  void _readAloud(String message) async {
+    await flutterTts.setLanguage("ar-SA");
+    await flutterTts.speak(message);
+    setState(() {
+      _isGenerating = true;
+    });
+  }
+  @override
+Widget build(BuildContext context) {
+  return GestureDetector(
+    onTap: () {
+      FocusScope.of(context).unfocus();
+    },
+    child: Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Color(0xFFA9A9A9),
+            Color(0xFF577363),
+            Color(0xFF063D1D),
           ],
+          stops: [0.0, 0.5, 1.0],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
         ),
       ),
+      child: Scaffold(
+        resizeToAvoidBottomInset: true,
+        backgroundColor: Colors.transparent,
+        appBar: PreferredSize(
+          preferredSize: Size(MediaQuery.of(context).size.width, 80),
+          child: buildAppBar(context),
+        ),
+        endDrawer: Drawer(
+          child: ListView(
+            padding: EdgeInsets.zero,
+            children: [
+              DrawerHeader(
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E3C1E),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: const [
+                    Icon(Icons.account_circle, size: 80, color: Colors.white),
+                    SizedBox(height: 10),
+                    Text("مرحبًا بك",
+                        style: TextStyle(color: Colors.white, fontSize: 18)),
+                  ],
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.share),
+                title: const Text("مشاركة رابط الحساب"),
+                onTap: () {},
+              ),
+              ListTile(
+                leading: const Icon(Icons.logout),
+                title: const Text("تسجيل خروج"),
+                onTap: () {},
+              ),
+            ],
+          ),
+        ),
+        body: _chatUI(),
+      ),
+    ),
+  );
+}
+
+Widget buildAppBar(BuildContext context) {
+  return Padding(
+    padding: const EdgeInsets.only(left: 10, top: 40, bottom: 20),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        IconButton(
+          icon: const Icon(Icons.arrow_back, color: Color(0xFF063D1D)),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
+        const Text(
+          "مساعدة",
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF063D1D),
+          ),
+        ),
+        Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu, color: Color(0xFF063D1D)),
+            onPressed: () {
+              Scaffold.of(context).openEndDrawer();
+            },
+          ),
+        ),
+      ],
+    ),
+  );
+}
+  // التفاعل مع واجهة المستخدم
+  Widget _chatUI() {
+    return Column(
+      children: [
+        Expanded(
+          child: ListView.builder(
+            controller: scrollController,
+            itemCount: messages.length + (isTyping ? 1 : 0),
+            reverse: true,
+            itemBuilder: (context, index) {
+              final message = messages[index - (isTyping ? 1 : 0)];
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: message.user.id == currentUser.id
+                          ? CrossAxisAlignment.end
+                          : CrossAxisAlignment.start,
+                      children: [
+                        BubbleNormal(
+                          text: message.text,
+                          textStyle: TextStyle(color: Colors.white),
+                          isSender: message.user.id == currentUser.id,
+                          color: message.user.id == currentUser.id
+                              ? const Color.fromARGB(255, 84, 105, 83)
+                              : const Color.fromARGB(115, 130, 121, 121),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (message.user.id == geminiUser.id)
+                    IconButton(
+                      icon: _isGenerating
+                          ? const Icon(
+                              Icons.volume_off,
+                              color: Colors.white60,
+                            )
+                          : const Icon(
+                              Icons.volume_up,
+                              color: Colors.white60,
+                            ),
+                      onPressed: () {
+                        if (_isGenerating) {
+                          flutterTts.stop();
+                          setState(() {
+                            _isGenerating = false;
+                          });
+                        } else {
+                          _readAloud(message.text);
+                        }
+                      },
+                    ),
+                ],
+              );
+            },
+          ),
+        ),
+        _textFieldUI(),
+      ],
     );
   }
+
+  // حقل النص (TextField) ارسال الرسائل
+Widget _textFieldUI() {
+  return Padding(
+    padding: const EdgeInsets.all(8.0),
+    child: Row(
+      children: [
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 1.0),
+            decoration: BoxDecoration(
+              color: const Color.fromARGB(255, 108, 106, 106),
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: Row(
+              children: [
+                SizedBox(width: 20),
+                Expanded(
+                  child: TextField(
+                    controller: controller,
+                    style: TextStyle(color: Colors.white),
+                    onChanged: (text) {
+                      setState(() {});
+                    },
+                    decoration: const InputDecoration(
+                      border: InputBorder.none,
+                      hintText: "أكتب هنا...",
+                      hintStyle: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ),
+                const VerticalDivider(color: Colors.black, width: 8),
+                GestureDetector(
+                  onLongPressStart: (_) {
+                    _listen();
+                  },
+                  onLongPressEnd: (_) {
+                    speechToText.stop();
+                    setState(() => _isListening = false);
+                  },
+                  child: IconButton(
+                    icon: Icon(
+                      controller.text.isEmpty ? Icons.mic : Icons.send,
+                      color: Colors.white,
+                    ),
+                    onPressed: () {
+                      if (controller.text.isNotEmpty) {
+                        _sendMessage(ChatMessage(
+                          user: currentUser,
+                          createdAt: DateTime.now(),
+                          text: controller.text,
+                        ));
+                        controller.clear();
+                        setState(() {});
+                      }
+                    },
+                    constraints: BoxConstraints(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        IconButton(
+          icon: const Icon(Icons.headset), // شكل سماعة رأس (🎧)
+          onPressed: () {
+          // Navigator.push(
+              //context,
+              //MaterialPageRoute(builder: (context) => VoiceChat()), // ينقلني صفحة VoiceChat (مخصصة للاوامر الصوتية)
+           // );
+          },
+          color: Colors.white,
+        ),
+      ],
+    ),
+  );
+}
 }

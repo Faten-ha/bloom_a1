@@ -1,0 +1,2 @@
+D:/bloom_a1/android/app/.cxx/Debug/412q5az1/x86/CMakeFiles/edit_cache.dir
+D:/bloom_a1/android/app/.cxx/Debug/412q5az1/x86/CMakeFiles/rebuild_cache.dir
