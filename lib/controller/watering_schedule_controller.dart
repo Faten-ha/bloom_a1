@@ -34,7 +34,5 @@ class WateringScheduleController extends GetxController {
   Future<void> deleteSchedule(int plantId) async {
     await _dbHelper.deleteSchedule(plantId);
     await loadSchedules(plantId);
-    // Cancel all notifications for this plant
-    await MultiUseClasses.notificationServices.cancelAllNotification();
-  }
+    }
 }

@@ -2,9 +2,11 @@ import 'package:bloom_a1/controller/plant_controller.dart';
 import 'package:bloom_a1/multi_use_classes.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:timezone/timezone.dart' as tz;
 import '../controller/auth_controller.dart';
 import '../controller/watering_schedule_controller.dart';
 import '../models/watering_schedule_table.dart';
+import '../services/notification_service.dart';
 import 'home_screen.dart';
 
 class WateringScheduleScreen extends StatefulWidget {
@@ -28,9 +30,6 @@ class _WateringScheduleScreenState extends State<WateringScheduleScreen> {
   @override
   void initState() {
     super.initState();
-    // Initialize TTS and Notification services
-    MultiUseClasses.ttsServices.init();
-    MultiUseClasses.notificationServices.init();
   }
 
   void _setLastWatered(DateTime date) {
@@ -75,23 +74,31 @@ class _WateringScheduleScreenState extends State<WateringScheduleScreen> {
       // Schedule notification for each watering day
       await _scheduleWateringNotification(
         plantName: plant,
-        date: schedule[i],
+        scheduledDate: schedule[i],
+          i: (i*10),
       );
     }
   }
 
   Future<void> _scheduleWateringNotification({
     required String plantName,
-    required DateTime date,
+    required DateTime scheduledDate,
+    required int i,
   }) async {
-    final notificationId = date.hashCode; // Unique ID based on date
+    final notificationId = scheduledDate.hashCode; // Unique ID based on date
 
-    await MultiUseClasses.notificationServices.scheduleNotification(
-      id: notificationId,
-      title: "موعد ري النبات",
-      body: "حان وقت ري نبات $plantName اليوم",
-      scheduledTime:date,
+    String message = "حان وقت ري نبات $plantName اليوم";
+    String title = "موعد ري النبات";
+
+    await NotificationService.scheduleNotification(
+      id: notificationId, // unique id
+      title: title,
+      body: message,
+      date: DateTime.now().add(Duration(seconds: i+1)),
     );
+
+    //await NotificationService.scheduleAndroidAlarm(scheduledDate, message);
+
   }
 
   @override

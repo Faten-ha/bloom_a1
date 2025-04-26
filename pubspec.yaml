@@ -16,13 +16,13 @@ dependencies:
   shared_preferences: ^2.2.3
   animations: ^2.0.7
   logging: ^1.0.0
-  http: ^0.13.4
+  http: ^1.3.0
   speech_to_text: ^7.0.0
   tflite_flutter: ^0.11.0
   image: ^4.0.17
   get: ^4.7.2
-  intl: ^0.18.0
-  geolocator: ^10.0.0  # إضافة حزمة geolocator
+  intl: 0.18.1
+  geolocator: ^14.0.0  # إضافة حزمة geolocator
   get_it: ^8.0.3
   dio: ^5.4.1
   flutter_markdown: ^0.6.21
@@ -34,13 +34,13 @@ dependencies:
   #connectivity: ^3.0.6 # إضافة حزمة connectivity للتحقق من الاتصال بالإنترنت قبل جلب بيانات الطقس
   sqflite: ^2.4.2
   path: ^1.9.1
-  weather: ^2.0.1
-  geocoding: ^2.1.0
+  weather: ^3.2.1
+  geocoding: ^3.0.0
   
   #================================================================
   #Send local notifications
-  flutter_local_notifications: ^18.0.1
-  timezone: 0.9.4
+  flutter_local_notifications: ^19.1.0
+  timezone: ^0.10.0
   flutter_timezone: ^4.1.0
   #alarm
   hive_flutter: ^1.1.0

@@ -1,160 +1,96 @@
+import 'dart:io';
+
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:get/get.dart';
-import 'package:hive/hive.dart';
 import 'package:timezone/timezone.dart' as tz;
-import 'package:timezone/data/latest.dart' as tz;
-import 'package:flutter_timezone/flutter_timezone.dart';
 
-import '../models/ScheduledNotification.dart';
-import '../multi_use_classes.dart';
-import '../screens/watering_schedule_screen.dart';
+class NotificationService {
+  static final FlutterLocalNotificationsPlugin _notifications =
+  FlutterLocalNotificationsPlugin();
 
-class NotificationService extends GetxService{
-  final notificationPlugin = FlutterLocalNotificationsPlugin();
-  bool _isInitialized = false;
-  late Box<ScheduledNotification> _notificationBox;
+  static const platform = MethodChannel('com.example.bloom_a1/alarm');
 
+  static Future<void> init() async {
+    const AndroidInitializationSettings androidSettings =
+    AndroidInitializationSettings('@mipmap/ic_launcher');
 
-  //Initialize
-  Future<NotificationService> init() async {
-    if (_isInitialized) return this; //prevent reinitialization
-
-// Initialize Hive box
-    _notificationBox = Hive.box<ScheduledNotification>('notifications');
-    //init timezone handling
-    tz.initializeTimeZones();
-    final currentTimeZone = await FlutterTimezone.getLocalTimezone();
-    tz.setLocalLocation(tz.getLocation(currentTimeZone));
-
-    //request permission
-    final permissionStatus = await notificationPlugin
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.requestNotificationsPermission();
-
-    if (permissionStatus == null || permissionStatus == false) {
-      return this;
-    }
-
-    //prepare android init settings
-    const initSettingsAndroid =
-        AndroidInitializationSettings("@mipmap/ic_launcher");
-
-    //prepare ios init settings
-    const initSettingsIOS = DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
+    const InitializationSettings initSettings = InitializationSettings(
+      android: androidSettings,
     );
 
-    //prepare init settings
-    const initSettings = InitializationSettings(
-      android: initSettingsAndroid,
-      iOS: initSettingsIOS,
-    );
-
-    //initialize the plugin
-    await notificationPlugin.initialize(initSettings
-    ,onDidReceiveNotificationResponse: (NotificationResponse response) {
-        _onNotificationClicked(response);
+    await _notifications.initialize(
+      initSettings,
+      onDidReceiveNotificationResponse: (
+          NotificationResponse notificationResponse,
+          ) async {
+        //  _handleNotificationTap();
       },
     );
-    _isInitialized = true;
-    return this;
-  }
 
-  void _onNotificationClicked(NotificationResponse response) async{
-    // Handle notification click
-    final notification = _notificationBox.get(response.id);
-    if (notification != null) {
-      // Speak the notification content
-      await MultiUseClasses.ttsServices.speak(
-          "${notification.title}. ${notification.body}"
-      );
+    const AndroidNotificationChannel channel = AndroidNotificationChannel(
+      'main_channel_id',
+      'Main Channel',
+      description: 'Used for important scheduled notifications.',
+      importance: Importance.max,
+    );
 
-      // You can add additional actions here:
-      // - Navigate to specific screen
-      // - Perform specific action
-      // - Show dialog
+    final androidPlugin =
+    _notifications
+        .resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin
+    >();
 
-      // Example: Navigate to watering schedule screen
-      Get.to(() => WateringScheduleScreen());
+    if (androidPlugin != null) {
+      await androidPlugin.createNotificationChannel(channel);
 
-      // Remove the notification from storage
-      _notificationBox.delete(response.id);
     }
   }
-  //Notifications Details Setup
-  NotificationDetails _notificationDetails() {
-    return const NotificationDetails(
-      android: AndroidNotificationDetails(
-        "daily_channel_id",
-        "Daily Notifications",
-        channelDescription: "Daily Notifications Channel",
-        importance: Importance.max,
-        priority: Priority.high,
-      ),
-      iOS: DarwinNotificationDetails(),
-    );
-  }
 
-
-  Future<void> scheduleNotification({
-    int id = 1,
-    String? title,
-    String? body,
-    required DateTime scheduledTime,
+  static Future<void> scheduleNotification({
+    required int id,
+    required String title,
+    required String body,
+    required DateTime date,
   }) async {
-    // Save to local storage
-    final notification = ScheduledNotification(
-      id: id,
-      title: title!,
-      body: body!,
-      scheduledTime: scheduledTime,
-    );
-    await _notificationBox.put(id, notification);
-
-    //get current date and time
-    final now = tz.TZDateTime.now(tz.local);
-
-
-    //schedule the notification
-    await notificationPlugin.zonedSchedule(
+    final tz.TZDateTime scheduledDate = tz.TZDateTime.from(date, tz.local);//convert date to tz date
+    await _notifications.zonedSchedule(
       id,
       title,
       body,
-      tz.TZDateTime.from(scheduledTime, tz.local),
-      _notificationDetails(),
-      //Ios specific: Use exact time specified (vs relative time)
-      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-      //Android specific: Allow notification while device is in low-power mode
+      scheduledDate,
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'main_channel_id',
+          'Main Channel',
+          channelDescription: 'Used for important scheduled notifications.',
+          importance: Importance.max,
+          priority: Priority.high,
+        ),
+      ),
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      matchDateTimeComponents: null,
 
-      //make the notification repeat daily at the same time
-      matchDateTimeComponents: DateTimeComponents.time,
-      payload: id.toString(), // Important for identification
+      payload: body, // ✅ pass the message text as payload
     );
+    await scheduleAndroidAlarm(date, '$title. $body');
   }
 
-// Check for Missed Notifications on App Start
-  Future<void> checkMissedNotifications() async {
-    final now = DateTime.now();
 
-    for (var notification in _notificationBox.values) {
-      if (notification.scheduledTime.isBefore(now)) {
-        // Trigger TTS for missed notifications
-        await MultiUseClasses.ttsServices.speak(
-            "${notification.title}. ${notification.body}"
-        );
-        // Remove from storage
-        _notificationBox.delete(notification.id);
+
+  static Future<void> scheduleAndroidAlarm(
+      DateTime datetime,
+      String message,
+      ) async {
+    if (Platform.isAndroid) {
+      final int alarmTimeMillis = datetime.millisecondsSinceEpoch;
+      try {
+        await platform.invokeMethod('scheduleAlarm', {
+          'time': alarmTimeMillis,
+          'message': message, // ✅ send message with time
+        });
+      } on PlatformException catch (e) {
+        print("Failed to schedule alarm: '${e.message}'.");
       }
     }
   }
-
-  //Cancel All Notification
-  Future<void> cancelAllNotification() async {
-    await notificationPlugin.cancelAll();
-  }
-
 }

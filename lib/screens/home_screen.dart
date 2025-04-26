@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../services/notification_service.dart';
 import 'my_plants_screen.dart';
 import 'camera_screen.dart';
 import 'watering_schedule_screen.dart';
@@ -40,9 +39,6 @@ class _HomeScreenState extends State<HomeScreen> {
     _speechToText = stt.SpeechToText();
     _initializeSpeechToText();
     _loadLocationPermissionStatus();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Get.find<NotificationService>().checkMissedNotifications();
-    });
   }
 
   Future<void> _loadLocationPermissionStatus() async {
