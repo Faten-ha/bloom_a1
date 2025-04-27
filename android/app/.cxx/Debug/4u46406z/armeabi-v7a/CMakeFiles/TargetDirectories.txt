@@ -1,0 +1,2 @@
+C:/Users/Admin/Desktop/html-docs/New_folder/New_folderff/bloom_a1/android/app/.cxx/Debug/4u46406z/armeabi-v7a/CMakeFiles/edit_cache.dir
+C:/Users/Admin/Desktop/html-docs/New_folder/New_folderff/bloom_a1/android/app/.cxx/Debug/4u46406z/armeabi-v7a/CMakeFiles/rebuild_cache.dir
