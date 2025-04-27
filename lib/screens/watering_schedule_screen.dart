@@ -75,7 +75,6 @@ class _WateringScheduleScreenState extends State<WateringScheduleScreen> {
       await _scheduleWateringNotification(
         plantName: plant,
         scheduledDate: schedule[i],
-          i: (i*10),
       );
     }
   }
@@ -83,7 +82,6 @@ class _WateringScheduleScreenState extends State<WateringScheduleScreen> {
   Future<void> _scheduleWateringNotification({
     required String plantName,
     required DateTime scheduledDate,
-    required int i,
   }) async {
     final notificationId = scheduledDate.hashCode; // Unique ID based on date
 
@@ -94,7 +92,7 @@ class _WateringScheduleScreenState extends State<WateringScheduleScreen> {
       id: notificationId, // unique id
       title: title,
       body: message,
-      date: DateTime.now().add(Duration(seconds: i+1)),
+      date: scheduledDate,
     );
 
     //await NotificationService.scheduleAndroidAlarm(scheduledDate, message);
