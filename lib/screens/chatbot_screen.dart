@@ -7,11 +7,10 @@ import 'const.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_tts/flutter_tts.dart';
-//import 'package:bloom_a1/screens/Voice_Chat.dart';
+import 'package:bloom_a1/screens/voice_chat.dart';
 
 class ChatBotScreen extends StatefulWidget {
   const ChatBotScreen({super.key});
-
   @override
   _ChatBotScreenState createState() => _ChatBotScreenState();
 }
@@ -30,20 +29,20 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
   bool isTyping = false;
   String _text = '';
 
-  ChatUser currentUser = ChatUser(id: "0", firstName: "User");// المستخدم  اللي يتفاعل مع الشات 
-  ChatUser geminiUser = ChatUser(id: "1", firstName: "Gemini");// الشات 
+  ChatUser currentUser =
+      ChatUser(id: "0", firstName: "User"); // المستخدم  اللي يتفاعل مع الشات
+  ChatUser geminiUser = ChatUser(id: "1", firstName: "Gemini"); // الشات
 
-  // تهيئة البيانات
   @override
   void initState() {
     super.initState();
     speechToText = stt.SpeechToText();
-    _requestPermission();//صلاحيات الميكروفون
+    _requestPermission();
     _initSpeech();
 
     flutterTts.setLanguage("ar-SA");
-    flutterTts.setPitch(1.0); // حدة الصوت
-    flutterTts.setSpeechRate(0.5); // سرعة النطق
+    flutterTts.setPitch(1.0);
+    flutterTts.setSpeechRate(0.5);
     flutterTts.setEngine("com.google.android.tts");
 
     flutterTts.setCompletionHandler(() {
@@ -55,7 +54,7 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
 
   @override
   void dispose() {
-    flutterTts.stop();//// إيقاف تحويل النص إلى صوت
+    flutterTts.stop(); // إيقاف تحويل النص إلى صوت
     controller.dispose();
     super.dispose();
   }
@@ -78,16 +77,14 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
     print('التعرف على الصوت متاح: $available');
   }
 
-  // Gemini إرسال رسالة والتفاعل مع 
+  // Gemini إرسال رسالة والتفاعل مع
   void _sendMessage(ChatMessage chatMessage) {
     setState(() {
-
       messages = [chatMessage, ...messages];
     });
     try {
       String question = chatMessage.text;
       final String fullPrompt = "${getBotanyPrompt(question)}\n\n$question";
-
       gemini
           .streamGenerateContent(
         fullPrompt,
@@ -96,7 +93,8 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
           .listen((event) async {
         ChatMessage? lastMessage = messages.firstOrNull;
         String response = event.content?.parts?.fold(
-            "", (previous, current) => "$previous ${current.text}") ?? "";
+                "", (previous, current) => "$previous ${current.text}") ??
+            "";
         if (lastMessage != null && lastMessage.user == geminiUser) {
           lastMessage = messages.removeAt(0);
           lastMessage.text += response;
@@ -146,6 +144,7 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
       setState(() => _isListening = false);
     }
   }
+
 //قراءة الرسالة بصوت
   void _readAloud(String message) async {
     await flutterTts.setLanguage("ar-SA");
@@ -154,6 +153,7 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
       _isGenerating = true;
     });
   }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -249,6 +249,7 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
       ),
     );
   }
+
   // التفاعل مع واجهة المستخدم
   Widget _chatUI() {
     return Column(
@@ -284,13 +285,13 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
                     IconButton(
                       icon: _isGenerating
                           ? const Icon(
-                        Icons.volume_off,
-                        color: Colors.white60,
-                      )
+                              Icons.volume_off,
+                              color: Colors.white60,
+                            )
                           : const Icon(
-                        Icons.volume_up,
-                        color: Colors.white60,
-                      ),
+                              Icons.volume_up,
+                              color: Colors.white60,
+                            ),
                       onPressed: () {
                         if (_isGenerating) {
                           flutterTts.stop();
@@ -342,7 +343,6 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
                       ),
                     ),
                   ),
-                  const VerticalDivider(color: Colors.black, width: 8),
                   GestureDetector(
                     onLongPressStart: (_) {
                       _listen();
@@ -375,12 +375,14 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.headset), // شكل سماعة رأس (🎧)
+            icon: const Icon(Icons.headset),
             onPressed: () {
-              // Navigator.push(
-              //context,
-              //MaterialPageRoute(builder: (context) => VoiceChat()), // ينقلني صفحة VoiceChat (مخصصة للاوامر الصوتية)
-              // );
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) =>
+                        VoiceChat()), // ينقلني صفحة VoiceChat (مخصصة للاوامر الصوتية)
+              );
             },
             color: Colors.white,
           ),
