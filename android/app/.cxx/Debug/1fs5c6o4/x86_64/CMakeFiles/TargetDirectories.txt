@@ -1,0 +1,2 @@
+C:/Users/Admin/Desktop/flutter_projects/flutter_application_safe/bloooom/bloom_a1/android/app/.cxx/Debug/1fs5c6o4/x86_64/CMakeFiles/edit_cache.dir
+C:/Users/Admin/Desktop/flutter_projects/flutter_application_safe/bloooom/bloom_a1/android/app/.cxx/Debug/1fs5c6o4/x86_64/CMakeFiles/rebuild_cache.dir
