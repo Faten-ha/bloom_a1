@@ -476,16 +476,17 @@ class _MyPlantsScreenState extends State<MyPlantsScreen>
                         style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
-                            color: Colors.white)),
+                            color: (Color(0xFF063D1D)))),
                     Row(
                       children: [
                         IconButton(
                             icon: const Icon(Icons.help_outline,
-                                color: Colors.white),
+                                color: (Color(0xFF063D1D))),
                             onPressed: _showHelpScreen,
                             tooltip: "مساعدة الأوامر الصوتية"),
                         IconButton(
-                            icon: const Icon(Icons.search, color: Colors.white),
+                            icon: const Icon(Icons.search,
+                                color: (Color(0xFF063D1D))),
                             onPressed: () => searchFocusNode.requestFocus()),
                       ],
                     ),
