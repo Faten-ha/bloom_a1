@@ -16,7 +16,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
   late stt.SpeechToText _speechToText;
   bool _isListening = false;
   String _recognizedText = "";
-  //emailController,passwordController,confirmController
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController confirmController = TextEditingController();
@@ -30,63 +29,43 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   void _initializeSpeechToText() async {
     bool available = await _speechToText.initialize(
-      onStatus: (status) => debugPrint("🎤 Status: $status"),
-      onError: (error) => debugPrint("⚠️ Error: $error"),
+      onStatus: (status) => debugPrint("Status: $status"),
+      onError: (error) => debugPrint("Error: $error"),
     );
 
     if (!available) {
-      debugPrint("🚨 التعرف على الصوت غير متاح");
-      _showSnackbar("🚨 التعرف على الصوت غير متاح");
+      _showSnackbar("التعرف على الصوت غير متاح");
     }
   }
 
   void _startListening() async {
-    bool available = await _speechToText.initialize(
-      onStatus: (status) => debugPrint("🎤 Status: $status"),
-      onError: (error) => debugPrint("⚠️ Error: $error"),
-    );
-
-    if (available) {
-      setState(() => _isListening = true);
-      debugPrint("🎤 بدء الاستماع...");
-
-      _speechToText.listen(
-        localeId: "ar_SA",
-        onResult: (result) {
-          setState(() => _recognizedText = result.recognizedWords);
-          debugPrint("🎙️ تم التعرف على: $_recognizedText");
-
-          if (_recognizedText.length >= 4) {
-            _handleVoiceCommand(_recognizedText);
-          }
-        },
-      );
-    } else {
-      debugPrint("🚨 التعرف على الصوت غير متاح");
+    if (!_isListening) {
+      bool available = await _speechToText.initialize();
+      if (available) {
+        setState(() => _isListening = true);
+        _speechToText.listen(
+          localeId: "ar_SA",
+          onResult: (result) {
+            setState(() => _recognizedText = result.recognizedWords);
+            if (result.finalResult) _handleVoiceCommand(_recognizedText);
+          },
+        );
+      } else {
+        _showSnackbar("التعرف على الصوت غير متاح");
+      }
     }
   }
 
   void _handleVoiceCommand(String command) {
-    if (command.trim().isEmpty) {
-      debugPrint("⚠️ تم استقبال نص فارغ، يتم تجاهله...");
-      return;
-    }
-
-    debugPrint("🔍 تحليل الأمر: $command");
-
-    bool commandRecognized = false;
-
+    command = command.trim().toLowerCase();
     if (command.contains("إنشاء حساب") ||
         command.contains("حساب") ||
         command.contains("تسجيل جديد")) {
-      debugPrint("✅ تنفيذ: إنشاء حساب");
-      commandRecognized = true;
       signUp();
-    }
-
-    if (!commandRecognized) {
-      debugPrint("❌ لم يتم التعرف على الأمر! - النص المستلم: $command");
-      _showSnackbar("❌ لم يتم التعرف على الأمر!");
+    } else if (command.contains("مساعدة") || command.contains("الأوامر")) {
+      _showHelpScreen();
+    } else {
+      _showSnackbar("لم يتم التعرف على الأمر");
     }
     _stopListening();
   }
@@ -95,29 +74,174 @@ class _SignUpScreenState extends State<SignUpScreen> {
     if (_isListening) {
       _speechToText.stop();
       setState(() => _isListening = false);
-      debugPrint("🛑 توقف الاستماع...");
     }
   }
 
-  void _navigateToHomeScreen() {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const HomeScreen()),
+  void _showSnackbar(String message) {
+    Get.snackbar(
+      'تنبيه',
+      message,
+      duration: const Duration(seconds: 2),
+      snackPosition: SnackPosition.BOTTOM,
     );
-    debugPrint("🏠 الانتقال إلى الصفحة الرئيسية...");
   }
 
-  void _showSnackbar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
+  void _navigateToHomeScreen() {
+    // تم تعديل هذا السطر لإصلاح مشكلة التنقل
+    Get.offAll(() => const HomeScreen());
+  }
+
+  void _showHelpScreen() {
+    // حساب ارتفاع الشاشة
+    final screenHeight = MediaQuery.of(context).size.height;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF577363),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        height: screenHeight * 0.7,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              width: 50,
+              height: 5,
+              decoration: BoxDecoration(
+                color: Colors.white.withAlpha(128),
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            SizedBox(height: screenHeight * 0.02),
+            const Text(
+              "الأوامر الصوتية المتاحة",
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: screenHeight * 0.01),
+            const Divider(color: Colors.white24),
+            SizedBox(height: screenHeight * 0.01),
+            Expanded(
+              child: ListView(
+                children: [
+                  _buildHelpSection(
+                    "إنشاء حساب",
+                    "قل: \"إنشاء حساب\" أو \"تسجيل جديد\"",
+                    Icons.person_add,
+                  ),
+                  _buildHelpSection(
+                    "المساعدة",
+                    "قل: \"مساعدة\" أو \"الأوامر\"",
+                    Icons.help,
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: screenHeight * 0.015),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF204D32),
+                foregroundColor: Colors.white,
+                minimumSize: const Size(double.infinity, 50),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15),
+                ),
+              ),
+              onPressed: () => Navigator.pop(context),
+              child: const Text(
+                "حسنا",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHelpSection(String title, String description, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: Row(
+        textDirection: TextDirection.rtl,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF204D32),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: Colors.white, size: 24),
+          ),
+          const SizedBox(width: 15),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                  textAlign: TextAlign.right,
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  description,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Colors.white70,
+                  ),
+                  textAlign: TextAlign.right,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    // حساب قياسات الشاشة
+    final screenSize = MediaQuery.of(context).size;
+    final screenHeight = screenSize.height;
+    final screenWidth = screenSize.width;
+
+    // حساب أبعاد متناسبة مع الشاشة
+    final logoHeight = screenHeight * 0.22; // 22% من ارتفاع الشاشة
+    final buttonTextSize = screenWidth * 0.04; // حجم النص في الأزرار
+    final headerFontSize = screenWidth * 0.055; // حجم عنوان النموذج
+
     return Scaffold(
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        toolbarHeight: screenHeight * 0.05,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.help_outline, color: Colors.white),
+            onPressed: _showHelpScreen,
+            tooltip: 'مساعدة الأوامر الصوتية',
+          ),
+        ],
+      ),
       body: Container(
-        decoration: BoxDecoration(
+        width: double.infinity, // تأكيد أن الحاوية تأخذ العرض الكامل
+        height: double.infinity, // تأكيد أن الحاوية تأخذ الارتفاع الكامل
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
             colors: [
               Color(0xFF063D1D),
@@ -129,48 +253,59 @@ class _SignUpScreenState extends State<SignUpScreen> {
             end: Alignment.bottomCenter,
           ),
         ),
-        child: Column(
-          children: [
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _startListening,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0xFFCDD4BA),
-                foregroundColor: Colors.black,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30)),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 25, vertical: 10),
-                elevation: 5,
-              ),
-              child: const Text(
-                "🎤 استماع للأوامر الصوتية",
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-              ),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
+                SizedBox(height: screenHeight * 0.02),
+                Image.asset(
+                  'assets/images/Logo_bloom.png',
+                  height: logoHeight,
+                  width: logoHeight, // جعل العرض متناسب مع الارتفاع
+                  fit: BoxFit.contain,
+                ),
+                SizedBox(height: screenHeight * 0.03),
+                Center(
+                  child: ElevatedButton(
+                    onPressed: _startListening,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFCDD4BA),
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30)),
+                      padding: EdgeInsets.symmetric(
+                          horizontal: screenWidth * 0.06,
+                          vertical: screenHeight * 0.012),
+                      elevation: 5,
+                    ),
+                    child: Text(
+                      "🎤 استماع للأوامر الصوتية",
+                      style: TextStyle(
+                          fontSize: buttonTextSize,
+                          fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+                SizedBox(height: screenHeight * 0.03),
+                _buildFormContainer(
+                    screenWidth, screenHeight, headerFontSize, buttonTextSize),
+                SizedBox(height: screenHeight * 0.02),
+              ],
             ),
-            const SizedBox(height: 40),
-            Image.asset(
-              'assets/images/Logo_bloom.png',
-              height: 274,
-              width: 281,
-              fit: BoxFit.cover,
-            ),
-            const SizedBox(height: 40),
-            Expanded(
-              child: Align(
-                alignment: Alignment.bottomCenter,
-                child: _buildFormContainer(context),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildFormContainer(BuildContext context) {
+  Widget _buildFormContainer(double screenWidth, double screenHeight,
+      double headerFontSize, double buttonTextSize) {
+    final fieldTextSize = screenWidth * 0.038; // حجم النص في حقول الإدخال
+    final iconSize = screenWidth * 0.07; // حجم الأيقونات
+
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(screenWidth * 0.05),
+      margin: EdgeInsets.symmetric(horizontal: screenWidth * 0.05),
       decoration: BoxDecoration(
         color: const Color(0xFFB3BEA6),
         borderRadius: BorderRadius.circular(30),
@@ -183,107 +318,107 @@ class _SignUpScreenState extends State<SignUpScreen> {
           ),
         ],
       ),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            "إنشاء حساب",
+            style: TextStyle(
+              fontSize: headerFontSize,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[800],
+            ),
+          ),
+          SizedBox(height: screenHeight * 0.02),
+          _buildTextField(
+              controller: emailController,
+              hintText: "رقم الهاتف أو البريد الإلكتروني",
+              icon: Icons.phone,
+              fieldTextSize: fieldTextSize,
+              iconSize: iconSize,
+              screenHeight: screenHeight),
+          SizedBox(height: screenHeight * 0.015),
+          _buildTextField(
+              controller: passwordController,
+              hintText: "الرقم السري",
+              icon: Icons.lock,
+              obscureText: true,
+              fieldTextSize: fieldTextSize,
+              iconSize: iconSize,
+              screenHeight: screenHeight),
+          SizedBox(height: screenHeight * 0.015),
+          _buildTextField(
+              controller: confirmController,
+              hintText: "تأكيد الرقم السري",
+              icon: Icons.lock,
+              obscureText: true,
+              fieldTextSize: fieldTextSize,
+              iconSize: iconSize,
+              screenHeight: screenHeight),
+          SizedBox(height: screenHeight * 0.025),
+          ElevatedButton(
+            onPressed: signUp,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF577363),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30)),
+              padding: EdgeInsets.symmetric(
+                  vertical: screenHeight * 0.015,
+                  horizontal: screenWidth * 0.12),
+              elevation: 5,
+            ),
+            child: Text(
               "إنشاء حساب",
               style: TextStyle(
-                fontSize: 24,
+                fontSize: buttonTextSize * 1.1, // نص الزر أكبر قليلاً
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF20272B),
               ),
             ),
-            const SizedBox(height: 30),
-            _buildTextField(
-                icon: Icons.phone,
-                hintText: "رقم الهاتف أو البريد الإلكتروني",
-                txtEditingController: emailController),
-            const SizedBox(height: 15),
-            _buildTextField(
-                icon: Icons.lock,
-                hintText: "الرقم السري",
-                txtEditingController: passwordController,
-                obscureText: true),
-            const SizedBox(height: 15),
-            _buildTextField(
-                icon: Icons.lock,
-                hintText: "تأكيد الرقم السري",
-                txtEditingController: confirmController,
-                obscureText: true),
-            const SizedBox(height: 25),
-            _buildButton(context, text: "إنشاء حساب"),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildTextField(
-      {required IconData icon,
-      required String hintText,
-      required TextEditingController txtEditingController,
-      bool obscureText = false}) {
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String hintText,
+    required IconData icon,
+    bool obscureText = false,
+    required double fieldTextSize,
+    required double iconSize,
+    required double screenHeight,
+  }) {
     return TextField(
+      controller: controller,
       obscureText: obscureText,
-      style: TextStyle(),
       textAlign: TextAlign.center,
-      controller: txtEditingController,
+      style: TextStyle(fontSize: fieldTextSize),
       decoration: InputDecoration(
         suffixIcon: Padding(
-          padding: const EdgeInsets.only(top: 8),
-          child: icon == Icons.phone
-              ? Transform.rotate(
-                  angle: 4.5,
-                  child: Icon(
-                    icon,
-                    color: Color(0xFF577363),
-                    size: 30,
-                  ),
-                )
-              : Icon(
-                  icon,
-                  color: Color(0xFF577363),
-                  size: 30,
-                ),
+          padding: const EdgeInsets.only(right: 18),
+          child: Icon(
+            icon,
+            color: const Color(0xFF577363),
+            size: iconSize,
+          ),
         ),
         hintText: hintText,
+        hintStyle: TextStyle(fontSize: fieldTextSize),
         filled: true,
         fillColor: Colors.white,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(30),
           borderSide: BorderSide.none,
         ),
-        contentPadding:
-            const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
+        contentPadding: EdgeInsets.symmetric(
+            vertical: screenHeight * 0.018, horizontal: 20),
       ),
     );
   }
 
-  Widget _buildButton(BuildContext context, {required String text}) {
-    return ElevatedButton(
-      onPressed: () {
-        signUp();
-      },
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Color(0xFF577363),
-        foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 45),
-        elevation: 5,
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-  }
-
-  signUp() async {
+  Future<void> signUp() async {
     if (emailController.text.isEmpty || passwordController.text.isEmpty) {
       _showSnackbar("الرجاء إدخال البيانات المطلوبة");
       return;
@@ -296,7 +431,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       final result = await authController.signUp(
           emailController.text, passwordController.text);
       if (result == null) {
-        _showSnackbar("✅ تم إنشاء الحساب بنجاح!");
+        _showSnackbar("تم إنشاء الحساب بنجاح");
         _navigateToHomeScreen();
       } else {
         _showSnackbar(result);

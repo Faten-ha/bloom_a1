@@ -23,7 +23,8 @@ class PlantClassifierController extends GetxController {
   var prediction = "".obs;
   var probabilitiesText = "".obs; //  VARIABLE for probability values
   static const int inputSize = 224;
-
+  static const double confidenceThreshold =
+      0.96; // Confidence threshold for classification
   @override
   void onInit() {
     super.onInit();
@@ -65,6 +66,7 @@ class PlantClassifierController extends GetxController {
   }
 
   /// Run inference and classify the plant
+  /// Run inference and classify the plant
   Future<void> classifyImage() async {
     if (imageFile.value == null || interpreter == null || labels.isEmpty) {
       return;
@@ -83,8 +85,21 @@ class PlantClassifierController extends GetxController {
     int predictedIndex =
         probabilities.indexOf(probabilities.reduce((a, b) => a > b ? a : b));
 
-    prediction.value = labels[predictedIndex] ?? "Unknown";
-// Get the top 3 highest probabilities and their indexes
+    // Get the highest probability
+    double highestProbability = probabilities[predictedIndex];
+    print("highestProbability: $highestProbability");
+
+    // Check if the highest probability is below the threshold
+    if (highestProbability < confidenceThreshold) {
+      prediction.value = " الرجاء ادخال صورة نبات واضحة "; //
+      print("Model not confident, classifying as Unknown");
+      return;
+    } else {
+      prediction.value = labels[predictedIndex] ??
+          "Unknown"; // Classify as the predicted label
+    }
+
+    // Get the top 3 highest probabilities and their indexes
     List<MapEntry<int, double>> sortedEntries = probabilities
         .asMap()
         .entries
@@ -93,17 +108,20 @@ class PlantClassifierController extends GetxController {
 
     List<MapEntry<int, double>> top3 = sortedEntries.take(3).toList();
 
-    // Update UI values
-    prediction.value = labels[top3.first.key] ?? "Unknown"; // Top prediction
+    // Update UI values for top predictions and probabilities
     probabilitiesText.value = top3
         .map((entry) =>
             "${labels[entry.key] ?? 'Unknown'}: ${(entry.value * 100).toStringAsFixed(2)}%")
         .join("\n");
 
-    /// الحصول على معلومات النبات من `plantInfo`
-    if (plantInfo.containsKey(predictedIndex)) {
-      plant.value = plantInfo[predictedIndex]!; // تعيين كائن النبات
-      Get.to(() => AddPlantScreen()); // الانتقال إلى شاشة المعلومات
+    // Check if the predicted plant exists in the plantInfo map
+    if (highestProbability >= confidenceThreshold &&
+        plantInfo.containsKey(predictedIndex)) {
+      plant.value = plantInfo[predictedIndex]!; // Assign plant object
+      Get.to(() => AddPlantScreen()); // Navigate to plant information screen
+    } else {
+      plant.value = null; // Clear plant data if it's not recognized
+      print("Plant not recognized or model confidence too low.");
     }
   }
 

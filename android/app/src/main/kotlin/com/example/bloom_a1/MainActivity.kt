@@ -18,17 +18,19 @@ class MainActivity : FlutterActivity() {
             if (call.method == "scheduleAlarm") {
                 val timeMillis = call.argument<Long>("time") ?: return@setMethodCallHandler
                 val message = call.argument<String>("message") ?: "Default TTS message" // <-- get message from flutter!
+                val title = call.argument<String>("title") ?: "Default TTS title" // <-- get title from flutter!
 
-                scheduleAlarm(timeMillis, message)
+                scheduleAlarm(timeMillis, message,title)
                 result.success(null)
             }
         }
     }
 
-    private fun scheduleAlarm(timeMillis: Long, message: String) {
+    private fun scheduleAlarm(timeMillis: Long, message: String, title: String) {
         val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val intent = Intent(this, AlarmReceiver::class.java).apply {
             putExtra("message", message) // <-- PASS the message here!
+            putExtra("title", title) // <-- PASS the message here!
         }
         val requestCode = System.currentTimeMillis().toInt()
 

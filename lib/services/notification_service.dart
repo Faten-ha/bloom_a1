@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:timezone/timezone.dart' as tz;
+
 
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _notifications =
@@ -23,7 +23,7 @@ class NotificationService {
       onDidReceiveNotificationResponse: (
           NotificationResponse notificationResponse,
           ) async {
-        //  _handleNotificationTap();
+
       },
     );
 
@@ -52,34 +52,16 @@ class NotificationService {
     required String body,
     required DateTime date,
   }) async {
-    final tz.TZDateTime scheduledDate = tz.TZDateTime.from(date, tz.local);//convert date to tz date
-    await _notifications.zonedSchedule(
-      id,
-      title,
-      body,
-      scheduledDate,
-      const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'main_channel_id',
-          'Main Channel',
-          channelDescription: 'Used for important scheduled notifications.',
-          importance: Importance.max,
-          priority: Priority.high,
-        ),
-      ),
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-      matchDateTimeComponents: null,
 
-      payload: body, // ✅ pass the message text as payload
-    );
-    await scheduleAndroidAlarm(date, '$title. $body');
+    await scheduleAndroidAlarm(date, body,title);
   }
 
 
 
   static Future<void> scheduleAndroidAlarm(
       DateTime datetime,
-      String message,
+       String message,
+      String title,
       ) async {
     if (Platform.isAndroid) {
       final int alarmTimeMillis = datetime.millisecondsSinceEpoch;
@@ -87,6 +69,7 @@ class NotificationService {
         await platform.invokeMethod('scheduleAlarm', {
           'time': alarmTimeMillis,
           'message': message, // ✅ send message with time
+          'title':title,
         });
       } on PlatformException catch (e) {
         print("Failed to schedule alarm: '${e.message}'.");

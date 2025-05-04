@@ -22,10 +22,9 @@ class _MyPlantsScreenState extends State<MyPlantsScreen>
   bool _isListening = false;
   String _recognizedText = '';
   late AnimationController _animationController;
-  late Animation<double> _animation;
-  int? selectedPlantIndex;
   final TextEditingController searchController = TextEditingController();
   final FocusNode searchFocusNode = FocusNode();
+  int? selectedPlantIndex;
 
   final Map<String, List<String>> voiceCommands = {
     'water': [
@@ -56,14 +55,44 @@ class _MyPlantsScreenState extends State<MyPlantsScreen>
     'plant': ['نبات', 'نبتة', 'شجرة', 'نباتات', 'زرع', 'زراعة', 'شتلة'],
     'home': [
       'رئيسية',
-      'العودة',
-      'ارجع',
-      'رجوع',
-      'رجع',
+      'صفحة رئيسية',
+      'الرئيسية',
       'الصفحة الرئيسية',
-      'البداية'
+      'البيت',
+      'المنزل',
+      'البداية',
+      'الرئيسيه',
+      'الصفحة الرئيسيه'
+    ],
+    'back': [
+      'رجوع',
+      'ارجع',
+      'عودة',
+      'رجع',
+      'تراجع',
+      'الخلف',
+      'الى الخلف',
+      'للخلف',
+      'خلف'
     ],
     'search': ['بحث', 'ابحث', 'دور', 'فتش'],
+    'numbers': [
+      'واحد',
+      'اثنين',
+      'ثلاثة',
+      'اربعة',
+      'خمسة',
+      'ستة',
+      'سبعة',
+      'ثمانية',
+      'تسعة',
+      'عشرة',
+      'احد عشر',
+      'اثني عشر',
+      'ثلاثة عشر',
+      'اربعة عشر',
+      'خمسة عشر'
+    ],
   };
 
   @override
@@ -74,8 +103,6 @@ class _MyPlantsScreenState extends State<MyPlantsScreen>
     plantController.loadPlants();
     _animationController = AnimationController(
         duration: const Duration(milliseconds: 2000), vsync: this);
-    _animation = Tween<double>(begin: 1.0, end: 1.2).animate(CurvedAnimation(
-        parent: _animationController, curve: Curves.elasticOut));
   }
 
   @override
@@ -97,7 +124,9 @@ class _MyPlantsScreenState extends State<MyPlantsScreen>
       onError: (errorNotification) {
         setState(() => _isListening = false);
         _animationController.stop();
-        if (mounted) _showSnackbar("حدث خطأ في التعرف على الصوت");
+        if (mounted) {
+          _showSnackbar("حدث خطأ في التعرف على الصوت");
+        }
       },
     );
   }
@@ -119,7 +148,9 @@ class _MyPlantsScreenState extends State<MyPlantsScreen>
                   _recognizedText = result.recognizedWords;
                   _showCommandFeedback(_recognizedText);
                 });
-                if (result.finalResult) _handleVoiceCommand(_recognizedText);
+                if (result.finalResult) {
+                  _handleVoiceCommand(_recognizedText);
+                }
               }
             },
             listenFor: const Duration(seconds: 10),
@@ -151,71 +182,91 @@ class _MyPlantsScreenState extends State<MyPlantsScreen>
       return "سيتم إضافة النبتة لجدول الري";
     } else if (_hasKeyword(command, voiceCommands['add']!)) {
       return "سيتم فتح شاشة إضافة نبتة جديدة";
+    } else if (_hasKeyword(command, voiceCommands['back']!) ||
+        _hasKeyword(command, voiceCommands['home']!)) {
+      return "جاري تنفيذ الأمر...";
     }
     return "جاري معالجة الأمر...";
+  }
+
+  int? _extractPlantNumber(String command) {
+    RegExp digitRegex = RegExp(r'\b(\d+)\b');
+    Match? digitMatch = digitRegex.firstMatch(command);
+    if (digitMatch != null) {
+      return int.parse(digitMatch.group(1)!);
+    }
+
+    for (int i = 0; i < voiceCommands['numbers']!.length; i++) {
+      if (command.contains(voiceCommands['numbers']![i])) {
+        return i + 1;
+      }
+    }
+
+    return null;
   }
 
   void _handleVoiceCommand(String command) {
     command = command.trim().toLowerCase();
     bool commandRecognized = false;
 
-    RegExp numRegex = RegExp(
-        r'(رقم|نبتة|نبات|حذف|تفاصيل|مسح|امسح|ازالة|شيل|عرض|معلومات)?\s*(\d+)|(\d+)');
-    Match? match = numRegex.firstMatch(command);
-    int? requestedIndex;
+    int? plantNumber = _extractPlantNumber(command);
+    int? plantIndex = plantNumber != null ? plantNumber - 1 : null;
 
-    if (match != null) {
-      String? numStr = match.group(2) ?? match.group(3);
-      if (numStr != null) {
-        requestedIndex = int.parse(numStr) - 1;
-        debugPrint("النص المعترف به: $command"); // طباعة النص المعترف به
-        debugPrint("الرقم المستخرج: $requestedIndex"); // طباعة الرقم المستخرج
-
-        if (requestedIndex >= 0 &&
-            requestedIndex < plantController.filteredPlants.length) {
-          selectedPlantIndex = requestedIndex;
-          debugPrint("تم تحديد النبات رقم: ${requestedIndex + 1}");
-        } else {
-          _showSnackbar("لا يوجد نبات بالرقم ${requestedIndex + 1}");
-          requestedIndex = null;
-        }
+    if (plantIndex != null) {
+      if (plantIndex >= 0 &&
+          plantIndex < plantController.filteredPlants.length) {
+        selectedPlantIndex = plantIndex;
+        debugPrint("تم تحديد النبات رقم: ${plantIndex + 1}");
+      } else {
+        _showSnackbar("لا يوجد نبات بالرقم ${plantIndex + 1}");
+        plantIndex = null;
       }
     }
 
     if (_hasKeyword(command, voiceCommands['details']!)) {
       if (plantController.filteredPlants.isEmpty) {
         _showSnackbar("لا توجد نباتات لعرض تفاصيلها");
-      } else if (requestedIndex != null) {
-        showPlantDetails(requestedIndex);
-        _showSnackbar("عرض تفاصيل النبات رقم ${requestedIndex + 1}");
+      } else if (plantIndex != null) {
+        showPlantDetails(plantIndex);
+        _showSnackbar("عرض تفاصيل النبات رقم ${plantIndex + 1}");
       } else if (selectedPlantIndex != null) {
         showPlantDetails(selectedPlantIndex!);
       } else {
-        _showSnackbar("الرجاء تحديد نبات لعرض التفاصيل");
+        _showSnackbar("الرجاء تحديد نبات لعرض التفاصيل (مثال: تفاصيل رقم 1)");
       }
       commandRecognized = true;
     } else if (_hasKeyword(command, voiceCommands['delete']!)) {
       if (plantController.filteredPlants.isEmpty) {
         _showSnackbar("لا توجد نباتات للحذف");
-      } else if (requestedIndex != null) {
-        _showDeleteConfirmation(requestedIndex);
+      } else if (plantIndex != null) {
+        _showDeleteConfirmation(plantIndex);
       } else if (selectedPlantIndex != null) {
         _showDeleteConfirmation(selectedPlantIndex!);
       } else {
-        _showSnackbar(
-            "الرجاء تحديد نبات للحذف أو ذكر رقمه مثل: حذف نبتة رقم 1");
+        _showSnackbar("الرجاء تحديد نبات للحذف (مثال: حذف نبتة رقم 1)");
       }
       commandRecognized = true;
     } else if (_hasKeyword(command, voiceCommands['water']!)) {
-      if (Navigator.canPop(context)) Navigator.pop(context);
-      _navigateToWateringSchedule();
+      if (plantIndex != null) {
+        _addToWateringSchedule(plantIndex);
+      } else if (selectedPlantIndex != null) {
+        _addToWateringSchedule(selectedPlantIndex!);
+      } else {
+        _navigateToWateringSchedule();
+      }
       commandRecognized = true;
     } else if (_hasKeyword(command, voiceCommands['add']!)) {
-      if (Navigator.canPop(context)) Navigator.pop(context);
       _addNewPlant();
       commandRecognized = true;
+    } else if (_hasKeyword(command, voiceCommands['back']!)) {
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+        _showSnackbar("تم الرجوع للشاشة السابقة");
+      } else {
+        _navigateToHomeScreen();
+      }
+      commandRecognized = true;
     } else if (_hasKeyword(command, voiceCommands['home']!)) {
-      if (Navigator.canPop(context)) Navigator.pop(context);
       _navigateToHomeScreen();
       commandRecognized = true;
     } else if (_hasKeyword(command, voiceCommands['search']!)) {
@@ -244,6 +295,12 @@ class _MyPlantsScreenState extends State<MyPlantsScreen>
       _showSnackbar("لم يتم التعرف على الأمر. جرب: تفاصيل رقم 1 أو حذف رقم 2");
     }
     _stopListening();
+  }
+
+  void _addToWateringSchedule(int index) {
+    final plant = plantController.filteredPlants[index];
+    _showSnackbar("تم إضافة ${plant.name} لجدول الري");
+    _navigateToWateringSchedule();
   }
 
   void _showDeleteConfirmation(int index) {
@@ -277,13 +334,18 @@ class _MyPlantsScreenState extends State<MyPlantsScreen>
     try {
       Get.to(() => WateringScheduleScreen());
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         Navigator.of(context).push(
             MaterialPageRoute(builder: (context) => WateringScheduleScreen()));
+      }
     }
   }
 
-  void _navigateToHomeScreen() => Get.offAll(() => HomeScreen());
+  void _navigateToHomeScreen() {
+    Get.offAll(() => HomeScreen());
+    _showSnackbar("تم الانتقال للصفحة الرئيسية");
+  }
+
   void _addNewPlant() => Get.to(() => CameraScreen());
 
   void _stopListening() {
@@ -303,14 +365,18 @@ class _MyPlantsScreenState extends State<MyPlantsScreen>
     try {
       final plantToDelete = plantController.filteredPlants[index];
       final plantImage = File(plantToDelete.imageUrl);
-      if (await plantImage.exists()) await plantImage.delete();
+      if (await plantImage.exists()) {
+        await plantImage.delete();
+      }
       await plantController.deletePlant(index, plantToDelete.id!);
       await plantController.loadPlants();
       if (mounted) {
         setState(() {});
       }
     } catch (e) {
-      if (mounted) _showSnackbar("حدث خطأ أثناء حذف النبتة!");
+      if (mounted) {
+        _showSnackbar("حدث خطأ أثناء حذف النبتة!");
+      }
     }
   }
 
@@ -329,8 +395,11 @@ class _MyPlantsScreenState extends State<MyPlantsScreen>
 
   bool _hasKeyword(String text, List<String> keywords) {
     text = text.trim().toLowerCase();
-    for (var keyword in keywords)
-      if (text == keyword || text.contains(keyword)) return true;
+    for (var keyword in keywords) {
+      if (text == keyword || text.contains(keyword)) {
+        return true;
+      }
+    }
     return false;
   }
 
@@ -412,10 +481,14 @@ class _MyPlantsScreenState extends State<MyPlantsScreen>
                       Icons.info_outline),
                   _buildHelpSection(
                       "إضافة إلى جدول الري",
-                      "قل: \"أضف إلى جدول الري\" أو \"سقي\" أو \"ري\"",
+                      "قل: \"أضف إلى جدول الري\" أو \"سقي رقم 5\" أو \"ري رقم 3\"",
                       Icons.water_drop),
-                  _buildHelpSection("العودة للصفحة الرئيسية",
-                      "قل: \"الرئيسية\" أو \"العودة\" أو \"رجوع\"", Icons.home),
+                  _buildHelpSection(
+                      "العودة للصفحة الرئيسية",
+                      "قل: \"رئيسية\" أو \"الصفحة الرئيسية\" أو \"المنزل\"",
+                      Icons.home),
+                  _buildHelpSection("الرجوع للشاشة السابقة",
+                      "قل: \"رجوع\" أو \"عودة\" أو \"ارجع\"", Icons.arrow_back),
                   _buildHelpSection(
                       "البحث عن نبات",
                       "قل: \"ابحث عن نبات الصبار\" أو \"بحث عن نعناع\"",
@@ -470,7 +543,14 @@ class _MyPlantsScreenState extends State<MyPlantsScreen>
                     IconButton(
                       icon: const Icon(Icons.arrow_back,
                           color: Color(0xFF063D1D), size: 24),
-                      onPressed: _navigateToHomeScreen,
+                      onPressed: () {
+                        if (Navigator.canPop(context)) {
+                          Navigator.pop(context);
+                          _showSnackbar("تم الرجوع للشاشة السابقة");
+                        } else {
+                          _navigateToHomeScreen();
+                        }
+                      },
                     ),
                     const Text("نبتاتي",
                         style: TextStyle(
@@ -611,12 +691,13 @@ class _MyPlantsScreenState extends State<MyPlantsScreen>
                                               color: Colors.white, size: 22),
                                           onSelected: (value) {
                                             selectedPlantIndex = index;
-                                            if (value == 'water')
+                                            if (value == 'water') {
                                               _navigateToWateringSchedule();
-                                            else if (value == 'info')
+                                            } else if (value == 'info') {
                                               showPlantDetails(index);
-                                            else if (value == 'delete')
+                                            } else if (value == 'delete') {
                                               _showDeleteConfirmation(index);
+                                            }
                                           },
                                           itemBuilder: (context) => [
                                             const PopupMenuItem(
@@ -711,7 +792,8 @@ class _MyPlantsScreenState extends State<MyPlantsScreen>
                                               vertical: 8, horizontal: 14),
                                           elevation: 2,
                                         ),
-                                        onPressed: _navigateToWateringSchedule,
+                                        onPressed: () =>
+                                            _addToWateringSchedule(index),
                                         child: const Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [

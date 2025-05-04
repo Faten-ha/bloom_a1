@@ -1,5 +1,4 @@
 import 'package:bloom_a1/services/notification_service.dart';
-import 'package:bloom_a1/services/tts_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -15,16 +14,10 @@ void main() async {
   Gemini.init(apiKey: GEMINI_API_KEY);
   await initialServices();
 
-  // Initialize time zones
-  tz.initializeTimeZones();
-  final String currentTimeZone = await FlutterTimezone.getLocalTimezone();
-  tz.setLocalLocation(tz.getLocation(currentTimeZone));
-
   runApp(const MyApp());
 }
 
 Future<void> initialServices() async {
-  // await Get.putAsync(() => TtsService().init());
 
   final notificationStatus = await Permission.notification.status;
   if (!notificationStatus.isGranted) {

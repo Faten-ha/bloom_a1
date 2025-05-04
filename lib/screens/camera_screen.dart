@@ -338,21 +338,8 @@ class _CameraScreenState extends State<CameraScreen>
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: const [
                     Icon(Icons.account_circle, size: 80, color: Colors.white),
-                    SizedBox(height: 10),
-                    Text("مرحبًا بك",
-                        style: TextStyle(color: Colors.white, fontSize: 18)),
                   ],
                 ),
-              ),
-              ListTile(
-                leading: const Icon(Icons.share),
-                title: const Text("مشاركة رابط الحساب"),
-                onTap: () {},
-              ),
-              ListTile(
-                leading: const Icon(Icons.logout),
-                title: const Text("تسجيل خروج"),
-                onTap: () {},
               ),
             ],
           ),

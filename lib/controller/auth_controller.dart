@@ -67,6 +67,6 @@ class AuthController extends GetxController {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
     currentUser.value = null;
-    Get.offAll(()=>SplashScreen());
+    Get.offAll(() => SplashScreen());
   }
 }

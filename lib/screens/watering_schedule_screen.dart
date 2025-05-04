@@ -27,13 +27,11 @@ class _WateringScheduleScreenState extends State<WateringScheduleScreen>
   Map<String, DateTime> lastWatered = {};
   Map<String, List<DateTime>> wateringSchedule = {};
 
-  // إضافة متغيرات للأوامر الصوتية
   late stt.SpeechToText _speech;
   bool _isListening = false;
   String _recognizedText = '';
   late AnimationController _animationController;
 
-  // قائمة بالأوامر الصوتية المتاحة
   final Map<String, List<String>> voiceCommands = {
     'select_plant': [
       'اختر نبات',
@@ -65,14 +63,12 @@ class _WateringScheduleScreenState extends State<WateringScheduleScreen>
   @override
   void initState() {
     super.initState();
-
-    // إعداد خاصية التعرف على الكلام
     _speech = stt.SpeechToText();
     _initializeSpeech();
-
-    // إعداد الرسوم المتحركة
     _animationController = AnimationController(
-        duration: const Duration(milliseconds: 2000), vsync: this);
+      duration: const Duration(milliseconds: 2000),
+      vsync: this,
+    );
   }
 
   @override
@@ -81,7 +77,6 @@ class _WateringScheduleScreenState extends State<WateringScheduleScreen>
     super.dispose();
   }
 
-  // تهيئة خاصية التعرف على الكلام
   void _initializeSpeech() async {
     await _speech.initialize(
       onStatus: (status) {
@@ -93,12 +88,13 @@ class _WateringScheduleScreenState extends State<WateringScheduleScreen>
       onError: (errorNotification) {
         setState(() => _isListening = false);
         _animationController.stop();
-        if (mounted) _showSnackbar("حدث خطأ في التعرف على الصوت");
+        if (mounted) {
+          _showSnackbar("حدث خطأ في التعرف على الصوت");
+        }
       },
     );
   }
 
-  // بدء الاستماع للأوامر الصوتية
   void _startListening() async {
     if (!_isListening) {
       _recognizedText = '';
@@ -115,7 +111,9 @@ class _WateringScheduleScreenState extends State<WateringScheduleScreen>
                 setState(() {
                   _recognizedText = result.recognizedWords;
                 });
-                if (result.finalResult) _handleVoiceCommand(_recognizedText);
+                if (result.finalResult) {
+                  _handleVoiceCommand(_recognizedText);
+                }
               }
             },
             listenFor: const Duration(seconds: 10),
@@ -130,7 +128,6 @@ class _WateringScheduleScreenState extends State<WateringScheduleScreen>
     }
   }
 
-  // توقف الاستماع للأوامر الصوتية
   void _stopListening() {
     if (_isListening) {
       _speech.stop();
@@ -139,12 +136,9 @@ class _WateringScheduleScreenState extends State<WateringScheduleScreen>
     }
   }
 
-  // معالجة الأوامر الصوتية
   void _handleVoiceCommand(String command) {
     command = command.trim().toLowerCase();
     bool commandRecognized = false;
-
-    // البحث عن رقم في الأمر الصوتي
     RegExp numRegex = RegExp(r'(رقم|نبات|نباتة|اختر|اختيار|غير)\s*(\d+)|(\d+)');
     Match? match = numRegex.firstMatch(command);
     int? requestedIndex;
@@ -157,8 +151,7 @@ class _WateringScheduleScreenState extends State<WateringScheduleScreen>
           requestedIndex = parsedIndex - 1;
           if (requestedIndex >= 0 && requestedIndex < _plantNames.length) {
             setState(() {
-              _selectedPlantIndex =
-                  requestedIndex!; // معالجة الخطأ - القيمة مؤكدة الآن
+              _selectedPlantIndex = requestedIndex!;
             });
             _showSnackbar("تم اختيار نبات ${_plantNames[requestedIndex]}");
             commandRecognized = true;
@@ -192,7 +185,6 @@ class _WateringScheduleScreenState extends State<WateringScheduleScreen>
     _stopListening();
   }
 
-  // عرض حوار اختيار النبات
   void _showPlantSelectionDialog() {
     showDialog(
       context: context,
@@ -225,29 +217,33 @@ class _WateringScheduleScreenState extends State<WateringScheduleScreen>
     );
   }
 
-  // عرض حوار اختيار التاريخ
   void _showDatePicker() async {
+    final DateTime now = DateTime.now();
     DateTime? pickedDate = await showDatePicker(
       context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime(2024, 1, 1),
-      lastDate: DateTime(2025, 12, 31),
+      initialDate: now,
+      firstDate: DateTime(now.year - 1),
+      lastDate: DateTime(now.year + 1),
     );
+
     if (pickedDate != null) {
-      _setLastWatered(pickedDate);
+      // إذا كان التاريخ المحدد في الماضي، نستخدم التاريخ الحالي
+      final effectiveDate = pickedDate.isBefore(now) ? now : pickedDate;
+      _setLastWatered(effectiveDate);
       _showSnackbar(
-          "تم تحديد آخر يوم ري: ${pickedDate.day}/${pickedDate.month}/${pickedDate.year}");
+        "تم تحديد آخر يوم ري: ${effectiveDate.day}/${effectiveDate.month}/${effectiveDate.year}",
+      );
     }
   }
 
-  // عرض شاشة المساعدة للأوامر الصوتية
   void _showHelpScreen() {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: const Color(0xFF577363),
       shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (context) => Container(
         padding: const EdgeInsets.all(20),
         height: MediaQuery.of(context).size.height * 0.7,
@@ -255,18 +251,23 @@ class _WateringScheduleScreenState extends State<WateringScheduleScreen>
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Container(
-                width: 50,
-                height: 5,
-                decoration: BoxDecoration(
-                    color: Colors.white.withAlpha(128),
-                    borderRadius: BorderRadius.circular(10))),
+              width: 50,
+              height: 5,
+              decoration: BoxDecoration(
+                color: Colors.white.withAlpha(128),
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
             const SizedBox(height: 20),
-            const Text("الأوامر الصوتية المتاحة",
-                style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white),
-                textAlign: TextAlign.center),
+            const Text(
+              "الأوامر الصوتية المتاحة",
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 10),
             const Divider(color: Colors.white24),
             const SizedBox(height: 10),
@@ -274,15 +275,20 @@ class _WateringScheduleScreenState extends State<WateringScheduleScreen>
               child: ListView(
                 children: [
                   _buildHelpSection(
-                      "اختيار نبات",
-                      "قل: \"اختر نبات رقم 2\" أو \"غير النبات إلى 1\"",
-                      Icons.eco),
+                    "اختيار نبات",
+                    "قل: \"اختر نبات رقم 2\" أو \"غير النبات إلى 1\"",
+                    Icons.eco,
+                  ),
                   _buildHelpSection(
-                      "تحديد آخر يوم ري",
-                      "قل: \"تحديد آخر يوم ري\" أو \"آخر سقي\"",
-                      Icons.water_drop),
-                  _buildHelpSection("العودة للصفحة الرئيسية",
-                      "قل: \"الرئيسية\" أو \"العودة\" أو \"رجوع\"", Icons.home),
+                    "تحديد آخر يوم ري",
+                    "قل: \"تحديد آخر يوم ري\" أو \"آخر سقي\"",
+                    Icons.water_drop,
+                  ),
+                  _buildHelpSection(
+                    "العودة للصفحة الرئيسية",
+                    "قل: \"الرئيسية\" أو \"العودة\" أو \"رجوع\"",
+                    Icons.home,
+                  ),
                 ],
               ),
             ),
@@ -293,11 +299,14 @@ class _WateringScheduleScreenState extends State<WateringScheduleScreen>
                 foregroundColor: Colors.white,
                 minimumSize: const Size(double.infinity, 50),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15)),
+                  borderRadius: BorderRadius.circular(15),
+                ),
               ),
               onPressed: () => Navigator.pop(context),
-              child: const Text("حسنا",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              child: const Text(
+                "حسنا",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
             ),
           ],
         ),
@@ -305,7 +314,6 @@ class _WateringScheduleScreenState extends State<WateringScheduleScreen>
     );
   }
 
-  // بناء قسم في شاشة المساعدة
   Widget _buildHelpSection(String title, String description, IconData icon) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
@@ -315,8 +323,9 @@ class _WateringScheduleScreenState extends State<WateringScheduleScreen>
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-                color: const Color(0xFF204D32),
-                borderRadius: BorderRadius.circular(12)),
+              color: const Color(0xFF204D32),
+              borderRadius: BorderRadius.circular(12),
+            ),
             child: Icon(icon, color: Colors.white, size: 24),
           ),
           const SizedBox(width: 15),
@@ -324,16 +333,24 @@ class _WateringScheduleScreenState extends State<WateringScheduleScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(title,
-                    style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white),
-                    textAlign: TextAlign.right),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                  textAlign: TextAlign.right,
+                ),
                 const SizedBox(height: 3),
-                Text(description,
-                    style: const TextStyle(fontSize: 14, color: Colors.white70),
-                    textAlign: TextAlign.right),
+                Text(
+                  description,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Colors.white70,
+                  ),
+                  textAlign: TextAlign.right,
+                ),
               ],
             ),
           ),
@@ -342,7 +359,6 @@ class _WateringScheduleScreenState extends State<WateringScheduleScreen>
     );
   }
 
-  // التحقق من وجود كلمة في قائمة الكلمات المفتاحية
   bool _hasKeyword(String text, List<String> keywords) {
     text = text.trim().toLowerCase();
     for (var keyword in keywords) {
@@ -353,7 +369,6 @@ class _WateringScheduleScreenState extends State<WateringScheduleScreen>
     return false;
   }
 
-  // عرض رسالة تنبيه
   void _showSnackbar(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -361,7 +376,9 @@ class _WateringScheduleScreenState extends State<WateringScheduleScreen>
         content: Text(message),
         backgroundColor: const Color(0xFF204D32),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
         duration: const Duration(seconds: 3),
       ),
     );
@@ -378,59 +395,91 @@ class _WateringScheduleScreenState extends State<WateringScheduleScreen>
   Future<void> _generateWateringSchedule(String plant) async {
     final plantSchedule = _plantController.plants[_selectedPlantIndex];
     DateTime startDate = lastWatered[plant] ?? DateTime.now();
+
+    // تأكد من أن تاريخ البداية ليس في الماضي
+    if (startDate.isBefore(DateTime.now())) {
+      startDate = DateTime.now();
+    }
+
     List<DateTime> schedule = [];
     int waterDay = 0;
 
-    //get number of watering based the current season
     if (_plantController.currentSeason.value == "الشتاء") {
       waterDay = (30 / double.parse(plantSchedule.winter)).round();
-    }
-    if (_plantController.currentSeason.value == "الصيف") {
+    } else if (_plantController.currentSeason.value == "الصيف") {
       waterDay = (30 / double.parse(plantSchedule.summer)).round();
     }
 
+    // تأكد من أن waterDay ليس صفرًا لتجنب القسمة على صفر
+    waterDay = waterDay > 0 ? waterDay : 7; // قيمة افتراضية إذا كانت صفر
+
     for (int i = 1; i <= 30; i += waterDay) {
-      schedule.add(startDate.add(Duration(days: i)));
+      DateTime nextDate = startDate.add(Duration(days: i));
+      // تأكد من أن التاريخ في المستقبل
+      if (nextDate.isAfter(DateTime.now())) {
+        schedule.add(nextDate);
+      }
     }
+
     wateringSchedule[plant] = schedule;
 
-    //update or insert to watering_schedule table
-    if (_sController.wateringSchedules.isNotEmpty) {
-      await _sController.deleteSchedule(plantSchedule.id!);
-    }
+    try {
+      if (_sController.wateringSchedules.isNotEmpty) {
+        await _sController.deleteSchedule(plantSchedule.id!);
+      }
 
-    for (int i = 0; i < schedule.length; i++) {
-      await _sController.addSchedule(WateringScheduleTable(
-        plantId: plantSchedule.id!,
-        frequency: waterDay.toString(),
-        day: schedule[i].day.toString(),
-      ));
+      for (int i = 0; i < schedule.length; i++) {
+        await _sController.addSchedule(
+          WateringScheduleTable(
+            plantId: plantSchedule.id!,
+            frequency: waterDay.toString(),
+            day: schedule[i].day.toString(),
+          ),
+        );
 
-      // Schedule notification for each watering day
-      await _scheduleWateringNotification(
-        plantName: plant,
-        scheduledDate: schedule[i],
-      );
+        await _scheduleWateringNotification(
+          plantName: plant,
+          scheduledDate: schedule[i],
+            i: (i*10)
+        );
+      }
+    } catch (e) {
+      print("خطأ في إنشاء جدول الري: $e");
+      _showSnackbar("حدث خطأ أثناء إنشاء جدول الري");
     }
   }
 
   Future<void> _scheduleWateringNotification({
     required String plantName,
     required DateTime scheduledDate,
+    required int i,
   }) async {
-    final notificationId = scheduledDate.hashCode; // Unique ID based on date
+    final now = DateTime.now();
 
+    // إذا كان التاريخ في الماضي، لا تقم بجدولة الإشعار
+    if (scheduledDate.isBefore(now)) {
+      print("لا يمكن جدولة إشعار بتاريخ قديم: $scheduledDate");
+      return;
+    }
+
+    final notificationId = scheduledDate.hashCode;
     String message = "حان وقت ري نبات $plantName اليوم";
     String title = "موعد ري النبات";
 
-    await NotificationService.scheduleNotification(
-      id: notificationId, // unique id
-      title: title,
-      body: message,
-      date: scheduledDate,
-    );
-
-    //await NotificationService.scheduleAndroidAlarm(scheduledDate, message);
+    try {
+      await NotificationService.scheduleNotification(
+        id: notificationId,
+        title: title,
+        body: message,
+        date: DateTime.now().add(Duration(seconds: i+1)),
+      );
+      print("تم جدولة إشعار لـ $plantName في $scheduledDate");
+    } catch (e) {
+      print("فشل جدولة الإشعار: $e");
+      if (mounted) {
+        _showSnackbar("فشل في جدولة إشعار الري");
+      }
+    }
   }
 
   @override
@@ -438,13 +487,14 @@ class _WateringScheduleScreenState extends State<WateringScheduleScreen>
     if (_plantController.plants.isEmpty) {
       _plantController.loadPlants();
     }
+
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            Color(0xFFA9A9A9), // الرمادي الفاتح
-            Color(0xFF577363), // الأخضر الباهت
-            Color(0xFF063D1D), // الأخضر الغامق
+            Color(0xFFA9A9A9),
+            Color(0xFF577363),
+            Color(0xFF063D1D),
           ],
           stops: [0.0, 0.5, 1.0],
           begin: Alignment.topCenter,
@@ -455,7 +505,7 @@ class _WateringScheduleScreenState extends State<WateringScheduleScreen>
         backgroundColor: Colors.transparent,
         appBar: AppBar(
           backgroundColor: Colors.transparent,
-          foregroundColor: Color(0xFF063D1D),
+          foregroundColor: const Color(0xFF063D1D),
           elevation: 0,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back, color: Color(0xFF204D32)),
@@ -494,8 +544,10 @@ class _WateringScheduleScreenState extends State<WateringScheduleScreen>
                   children: const [
                     Icon(Icons.account_circle, size: 80, color: Colors.white),
                     SizedBox(height: 10),
-                    Text("مرحبًا بك",
-                        style: TextStyle(color: Colors.white, fontSize: 18)),
+                    Text(
+                      "مرحبًا بك",
+                      style: TextStyle(color: Colors.white, fontSize: 18),
+                    ),
                   ],
                 ),
               ),
@@ -519,23 +571,31 @@ class _WateringScheduleScreenState extends State<WateringScheduleScreen>
           padding: const EdgeInsets.all(16),
           child: Obx(() {
             if (_plantController.isLoading.value) {
-              return const Center(child: CircularProgressIndicator());
+              return const Center(
+                child: CircularProgressIndicator(),
+              );
             }
             if (_plantController.plants.isEmpty) {
-              return const Center(child: Text("لا يوجد نباتات بعد"));
+              return const Center(
+                child: Text("لا يوجد نباتات بعد"),
+              );
             }
+
             _plantNames = _plantController.plants.map((plant) {
               return plant.name;
             }).toList();
+
             _sController.loadSchedules(
-                _plantController.plants[_selectedPlantIndex].id!);
+              _plantController.plants[_selectedPlantIndex].id!,
+            );
+
             return Column(
               children: [
                 Padding(
                   padding: const EdgeInsets.all(8.0),
                   child: SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
-                    reverse: true, // optional: to maintain RTL feel
+                    reverse: true,
                     child: Row(
                       textDirection: TextDirection.rtl,
                       children: List.generate(_plantNames.length, (index) {
@@ -550,7 +610,9 @@ class _WateringScheduleScreenState extends State<WateringScheduleScreen>
                                   ? Colors.white
                                   : Colors.black,
                               padding: const EdgeInsets.symmetric(
-                                  vertical: 12, horizontal: 20),
+                                vertical: 12,
+                                horizontal: 20,
+                              ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(15),
                               ),
@@ -565,8 +627,9 @@ class _WateringScheduleScreenState extends State<WateringScheduleScreen>
                                 Text(
                                   _plantNames[index],
                                   style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold),
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                                 const SizedBox(width: 5),
                                 Container(
@@ -600,11 +663,12 @@ class _WateringScheduleScreenState extends State<WateringScheduleScreen>
                 const SizedBox(height: 20),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                        const Color(0xFF204D32), // استخدام اللون المطلوب
+                    backgroundColor: const Color(0xFF204D32),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(
-                        vertical: 12, horizontal: 20),
+                      vertical: 12,
+                      horizontal: 20,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(15),
                     ),
@@ -630,8 +694,10 @@ class _WateringScheduleScreenState extends State<WateringScheduleScreen>
               backgroundColor: _isListening
                   ? const Color(0xFF204D32)
                   : const Color(0xFFDCE3C6),
-              child: Icon(Icons.mic,
-                  color: _isListening ? Colors.white : Colors.black),
+              child: Icon(
+                Icons.mic,
+                color: _isListening ? Colors.white : Colors.black,
+              ),
             ),
             if (_isListening)
               const Positioned.fill(
@@ -645,8 +711,10 @@ class _WateringScheduleScreenState extends State<WateringScheduleScreen>
         floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
         bottomSheet: _isListening
             ? Container(
-                padding:
-                    const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 12,
+                  horizontal: 20,
+                ),
                 color: const Color(0xFF204D32),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -655,7 +723,10 @@ class _WateringScheduleScreenState extends State<WateringScheduleScreen>
                       _recognizedText.isNotEmpty
                           ? "التعرف على: $_recognizedText"
                           : "جاري الاستماع...",
-                      style: const TextStyle(color: Colors.white, fontSize: 16),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Row(
@@ -663,13 +734,17 @@ class _WateringScheduleScreenState extends State<WateringScheduleScreen>
                       children: [
                         TextButton(
                           onPressed: _stopListening,
-                          child: const Text("إلغاء",
-                              style: TextStyle(color: Colors.white)),
+                          child: const Text(
+                            "إلغاء",
+                            style: TextStyle(color: Colors.white),
+                          ),
                         ),
                         TextButton(
                           onPressed: _showHelpScreen,
-                          child: const Text("مساعدة",
-                              style: TextStyle(color: Colors.white)),
+                          child: const Text(
+                            "مساعدة",
+                            style: TextStyle(color: Colors.white),
+                          ),
                         ),
                       ],
                     ),
@@ -717,7 +792,9 @@ class _WateringScheduleScreenState extends State<WateringScheduleScreen>
         Expanded(
           child: Obx(() {
             if (_sController.isLoading.value) {
-              return const Center(child: CircularProgressIndicator());
+              return const Center(
+                child: CircularProgressIndicator(),
+              );
             }
 
             final schedules = _sController.wateringSchedules;

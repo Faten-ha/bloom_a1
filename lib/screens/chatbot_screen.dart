@@ -17,7 +17,7 @@ class ChatBotScreen extends StatefulWidget {
 
 class _ChatBotScreenState extends State<ChatBotScreen> {
   final Gemini gemini = Gemini.instance;
-  FlutterTts flutterTts = FlutterTts();
+  FlutterTts flutterTts = FlutterTts(); //
   List<ChatMessage> messages = [];
 
   final ScrollController scrollController = ScrollController();
@@ -29,9 +29,8 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
   bool isTyping = false;
   String _text = '';
 
-  ChatUser currentUser =
-      ChatUser(id: "0", firstName: "User"); // المستخدم  اللي يتفاعل مع الشات
-  ChatUser geminiUser = ChatUser(id: "1", firstName: "Gemini"); // الشات
+  ChatUser currentUser = ChatUser(id: "0", firstName: "User");
+  ChatUser geminiUser = ChatUser(id: "1", firstName: "Gemini");
 
   @override
   void initState() {
@@ -43,8 +42,6 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
     flutterTts.setLanguage("ar-SA");
     flutterTts.setPitch(1.0);
     flutterTts.setSpeechRate(0.5);
-    flutterTts.setEngine("com.google.android.tts");
-
     flutterTts.setCompletionHandler(() {
       setState(() {
         _isGenerating = false;
@@ -54,14 +51,18 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
 
   @override
   void dispose() {
-    flutterTts.stop(); // إيقاف تحويل النص إلى صوت
+    flutterTts.stop();
     controller.dispose();
     super.dispose();
   }
 
-  // طلب صلاحيات الميكروفون
   Future<void> _requestPermission() async {
     if (Platform.isAndroid) {
+      var status = await Permission.microphone.status;
+      if (!status.isGranted) {
+        await Permission.microphone.request();
+      }
+    } else if (Platform.isIOS) {
       var status = await Permission.microphone.status;
       if (!status.isGranted) {
         await Permission.microphone.request();
@@ -77,7 +78,6 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
     print('التعرف على الصوت متاح: $available');
   }
 
-  // Gemini إرسال رسالة والتفاعل مع
   void _sendMessage(ChatMessage chatMessage) {
     setState(() {
       messages = [chatMessage, ...messages];
@@ -117,6 +117,7 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
     }
   }
 
+//
   void _listen() async {
     if (!_isListening) {
       bool available = await speechToText.initialize(
@@ -145,7 +146,6 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
     }
   }
 
-//قراءة الرسالة بصوت
   void _readAloud(String message) async {
     await flutterTts.setLanguage("ar-SA");
     await flutterTts.speak(message);
@@ -178,37 +178,33 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
           backgroundColor: Colors.transparent,
           appBar: PreferredSize(
             preferredSize: Size(MediaQuery.of(context).size.width, 80),
-            child: buildAppBar(context),
-          ),
-          endDrawer: Drawer(
-            child: ListView(
-              padding: EdgeInsets.zero,
-              children: [
-                DrawerHeader(
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1E3C1E),
+            child: Padding(
+              padding: const EdgeInsets.only(top: 40, bottom: 20),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Positioned(
+                    left: 10,
+                    child: IconButton(
+                      icon: const Icon(Icons.arrow_back,
+                          color: Color(0xFF063D1D)),
+                      onPressed: () {
+                        Navigator.pop(context);
+                      },
+                    ),
                   ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: const [
-                      Icon(Icons.account_circle, size: 80, color: Colors.white),
-                      SizedBox(height: 10),
-                      Text("مرحبًا بك",
-                          style: TextStyle(color: Colors.white, fontSize: 18)),
-                    ],
+                  const Center(
+                    child: Text(
+                      "مساعدة",
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF063D1D),
+                      ),
+                    ),
                   ),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.share),
-                  title: const Text("مشاركة رابط الحساب"),
-                  onTap: () {},
-                ),
-                ListTile(
-                  leading: const Icon(Icons.logout),
-                  title: const Text("تسجيل خروج"),
-                  onTap: () {},
-                ),
-              ],
+                ],
+              ),
             ),
           ),
           body: _chatUI(),
@@ -217,50 +213,16 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
     );
   }
 
-  Widget buildAppBar(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 10, top: 40, bottom: 20),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back, color: Color(0xFF063D1D)),
-            onPressed: () {
-              Navigator.pop(context);
-            },
-          ),
-          const Text(
-            "مساعدة",
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF063D1D),
-            ),
-          ),
-          Builder(
-            builder: (context) => IconButton(
-              icon: const Icon(Icons.menu, color: Color(0xFF063D1D)),
-              onPressed: () {
-                Scaffold.of(context).openEndDrawer();
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // التفاعل مع واجهة المستخدم
   Widget _chatUI() {
     return Column(
       children: [
         Expanded(
           child: ListView.builder(
             controller: scrollController,
-            itemCount: messages.length + (isTyping ? 1 : 0),
+            itemCount: messages.length,
             reverse: true,
             itemBuilder: (context, index) {
-              final message = messages[index - (isTyping ? 1 : 0)];
+              final message = messages[index];
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -313,7 +275,6 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
     );
   }
 
-  // حقل النص (TextField) ارسال الرسائل
   Widget _textFieldUI() {
     return Padding(
       padding: const EdgeInsets.all(8.0),
@@ -379,9 +340,7 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                    builder: (context) =>
-                        VoiceChat()), // ينقلني صفحة VoiceChat (مخصصة للاوامر الصوتية)
+                MaterialPageRoute(builder: (context) => VoiceChat()),
               );
             },
             color: Colors.white,

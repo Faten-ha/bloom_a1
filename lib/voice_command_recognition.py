@@ -10,19 +10,19 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 # إعداد Flask
 app = Flask(__name__)
 
-# مسار المجلد الذي يحتوي على جميع الأوامر الصوتية
+
 AUDIO_PATH = "/mnt/data/sounds"
 
-# التحقق من أن المجلد موجود
+
 if not os.path.exists(AUDIO_PATH):
     logging.error("❌ المجلد الخاص بالأوامر الصوتية غير موجود!")
     os.makedirs(AUDIO_PATH)
     logging.info("✅ تم إنشاء المجلد الخاص بالأوامر الصوتية!")
 
-# تجميع جميع الأوامر الصوتية المسجلة
+
 command_list = [file.replace(".wav", "") for file in os.listdir(AUDIO_PATH) if file.endswith(".wav")]
 
-# تعريف الميكروفون والتعرف على الصوت
+
 recognizer = sr.Recognizer()
 
 # قاموس الأوامر وردود الفعل
@@ -39,7 +39,7 @@ command_map = {
     "ابحث عن نبتتك": "🔍 جاري البحث عن النبتة...",
     "مساعدة": "❓ عرض قائمة المساعدة!",
     "خروج": "👋 يتم إيقاف النظام!",
-    # إضافة أوامر جدول الري
+    
     "أضف إلى جدول الري": "💧 تمت إضافة النبات إلى جدول الري!",
     "أضف للري": "💧 تمت إضافة النبات إلى جدول الري!",
     "إضافة للري": "💧 تمت إضافة النبات إلى جدول الري!",
@@ -55,7 +55,7 @@ command_map = {
 def handle_command():
     """يستقبل الأمر الصوتي من Flutter وينفذه."""
     command = request.form.get("command")
-    plant_info = request.form.get("plant_info", "")  # معلومات النبات (اختياري)
+    plant_info = request.form.get("plant_info", "")  
 
     if not command:
         logging.warning("⚠️ لم يتم استقبال أي أمر!")
@@ -65,14 +65,14 @@ def handle_command():
     if plant_info:
         logging.info(f"🌱 معلومات النبات: {plant_info}")
 
-    # فحص الأوامر المتعلقة بجدول الري
+    
     watering_commands = [
         "أضف إلى جدول الري", "أضف للري", "إضافة للري", 
         "أضف للجدول", "جدول الري", "إضافة لجدول الري", 
         "أضفه للري", "أضيف للري", "سقي النبات", "جدولة الري"
     ]
     
-    # التحقق من وجود أمر جدول الري في النص
+    
     is_watering_command = any(cmd in command for cmd in watering_commands)
     
     if is_watering_command:
@@ -84,7 +84,7 @@ def handle_command():
         logging.info("🚀 تنفيذ أمر إضافة النبات إلى جدول الري")
         return jsonify(response), 200
     
-    # البحث عن أقرب تطابق بين الأوامر المسجلة
+    
     best_match = difflib.get_close_matches(command, command_map.keys(), n=1, cutoff=0.5)
 
     if best_match:
@@ -106,7 +106,7 @@ def recognize_command():
     """يستمع إلى صوت المستخدم ويقارن بالأوامر الصوتية المتاحة."""
     with sr.Microphone() as source:
         logging.info("🎤 تحدث الآن...")
-        recognizer.adjust_for_ambient_noise(source)  # تقليل الضوضاء
+        recognizer.adjust_for_ambient_noise(source)  
         audio = recognizer.listen(source)
 
     try:
@@ -118,7 +118,7 @@ def recognize_command():
         best_match = difflib.get_close_matches(recognized_text, command_map.keys(), n=1, cutoff=0.5)
 
         if best_match:
-            return execute_command(best_match[0])  # تنفيذ الأمر
+            return execute_command(best_match[0])  
         else:
             logging.warning("❌ لم يتم التعرف على الأمر، حاول مرة أخرى.")
             return "❌ لم يتم التعرف على الأمر، حاول مرة أخرى."
@@ -139,9 +139,9 @@ def execute_command(command):
         logging.info(f"✅ {response}")
 
         if command == "فتح الكاميرا":
-            os.system("start camera")  # استبدل بأمر مناسب إذا كنت تريد تشغيل الكاميرا
+            os.system("start camera")  
         elif command == "إغلاق الكاميرا":
-            os.system("taskkill /IM camera.exe /F")  # إغلاق الكاميرا (حسب النظام)
+            os.system("taskkill /IM camera.exe /F")  
         elif command == "خروج":
             exit()
 
@@ -150,7 +150,7 @@ def execute_command(command):
     logging.warning("🤔 الأمر غير معروف!")
     return "❌ الأمر غير معروف!"
 
-# تشغيل السيرفر
+
 if __name__ == "__main__":
     logging.info("🔊 نظام التعرف على الأوامر الصوتية جاهز!")
     app.run(host="0.0.0.0", debug=True, port=5000)
