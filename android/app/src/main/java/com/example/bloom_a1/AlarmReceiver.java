@@ -31,8 +31,7 @@ public class AlarmReceiver extends BroadcastReceiver {
     }
 
     private void showNotification(Context context, String message, String title) {
-        NotificationManager notificationManager =
-                (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+        NotificationManager notificationManager =  (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
 
         createNotificationChannel(notificationManager);
 

@@ -28,7 +28,6 @@ Future<void> initialServices() async {
   if (!alarmStatus.isGranted) {
     await Permission.scheduleExactAlarm.request();
   }
-  await NotificationService.init();
 }
 
 class MyApp extends StatelessWidget {

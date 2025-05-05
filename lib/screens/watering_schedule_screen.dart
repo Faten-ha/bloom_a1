@@ -440,7 +440,8 @@ class _WateringScheduleScreenState extends State<WateringScheduleScreen>
         await _scheduleWateringNotification(
           plantName: plant,
           scheduledDate: schedule[i],
-            i: (i*10)
+          i: i*10
+
         );
       }
     } catch (e) {
@@ -452,7 +453,7 @@ class _WateringScheduleScreenState extends State<WateringScheduleScreen>
   Future<void> _scheduleWateringNotification({
     required String plantName,
     required DateTime scheduledDate,
-    required int i,
+    required int i
   }) async {
     final now = DateTime.now();
 

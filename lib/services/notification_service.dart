@@ -5,46 +5,10 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 
 class NotificationService {
-  static final FlutterLocalNotificationsPlugin _notifications =
-  FlutterLocalNotificationsPlugin();
+
 
   static const platform = MethodChannel('com.example.bloom_a1/alarm');
 
-  static Future<void> init() async {
-    const AndroidInitializationSettings androidSettings =
-    AndroidInitializationSettings('@mipmap/ic_launcher');
-
-    const InitializationSettings initSettings = InitializationSettings(
-      android: androidSettings,
-    );
-
-    await _notifications.initialize(
-      initSettings,
-      onDidReceiveNotificationResponse: (
-          NotificationResponse notificationResponse,
-          ) async {
-
-      },
-    );
-
-    const AndroidNotificationChannel channel = AndroidNotificationChannel(
-      'main_channel_id',
-      'Main Channel',
-      description: 'Used for important scheduled notifications.',
-      importance: Importance.max,
-    );
-
-    final androidPlugin =
-    _notifications
-        .resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin
-    >();
-
-    if (androidPlugin != null) {
-      await androidPlugin.createNotificationChannel(channel);
-
-    }
-  }
 
   static Future<void> scheduleNotification({
     required int id,
